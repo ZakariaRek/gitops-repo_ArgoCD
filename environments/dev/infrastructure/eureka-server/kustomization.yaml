@@ -13,7 +13,7 @@ labels:
 
 images:
 - name: yahyazakaria123/ecommerce-app-discovery-service
-  newTag: dev-latest
+  newTag: latest  # Changed from dev-latest to latest
 
 replicas:
 - name: eureka-server
