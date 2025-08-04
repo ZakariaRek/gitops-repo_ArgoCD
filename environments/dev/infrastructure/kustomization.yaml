@@ -10,4 +10,4 @@ labels:
     environment: dev
     managed-by: argocd
 
-namespace: dev-infrastructure
+namespace: infrastructure
