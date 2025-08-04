@@ -11,10 +11,12 @@ resources:
 - ConfigMap.yaml
 - Secret.yaml
 
-commonLabels:
-  app: api-gateway
-  component: infrastructure
-  version: latest
+# Use 'labels' instead of deprecated 'commonLabels'
+labels:
+- pairs:
+    app: api-gateway
+    component: infrastructure
+    version: latest
 
 images:
 - name: yahyazakaria123/ecommerce-app-api-gateway-service
@@ -33,23 +35,3 @@ configMapGenerator:
   - LOG_LEVEL=INFO
   - GATEWAY_TIMEOUT=30s
   - DEBUG=true
-
-# Add patches for resource adjustments
-patchesStrategicMerge:
-- |-
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    name: api-gateway
-  spec:
-    template:
-      spec:
-        containers:
-        - name: api-gateway
-          # Add volume mounts for logs if needed
-          volumeMounts:
-          - name: logs-volume
-            mountPath: /app/logs
-        volumes:
-        - name: logs-volume
-          emptyDir: {}
