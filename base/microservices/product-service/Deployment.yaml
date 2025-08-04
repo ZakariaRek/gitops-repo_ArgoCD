@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: microservices
+  labels:
+    app: product-service
+    component: microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+        component: microservices
+    spec:
+      containers:
+      - name: product-service
+        image: yahyazakaria123/ecommerce-app-product-service:latest
+        ports:
+        - containerPort: 8081
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "docker,kafka"
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-server.infrastructure.svc.cluster.local:8888"
+        - name: SPRING_APPLICATION_NAME
+          value: "product-service"
+        - name: SERVER_PORT
+          value: "8081"
+        # Database configuration
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: product-service-secrets
+              key: db-username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: product-service-secrets
+              key: db-password
+        # Redis configuration for caching
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis-service.data.svc.cluster.local"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        - name: SPRING_DATA_REDIS_DATABASE
+          value: "2"
+        # Kafka configuration
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-service.data.svc.cluster.local:9092"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          initialDelaySeconds: 90
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 18
