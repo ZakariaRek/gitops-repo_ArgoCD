@@ -1,0 +1,174 @@
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: api-gateway-dev
+  namespace: infrastructure
+
+# Reference the base api-gateway configuration
+resources:
+- ../../../../base/infrastructure/api-gateway
+
+# Use infrastructure namespace
+namespace: infrastructure
+
+# Add environment-specific labels
+commonLabels:
+  environment: dev
+  tier: development
+
+# Use development image tag
+images:
+- name: yahyazakaria123/ecommerce-app-api-gateway-service
+  newTag: dev-latest
+
+# Reduce replicas for dev (save resources)
+replicas:
+- name: api-gateway
+  count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+- name: api-gateway-dev-config
+  literals:
+  - LOG_LEVEL=DEBUG
+  - SPRING_PROFILES_ACTIVE=dev,docker
+  - GATEWAY_TIMEOUT=60s
+  - ENABLE_REQUEST_LOGGING=true
+
+# Patch the deployment with dev-specific configurations
+patchesStrategicMerge:
+- |-
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: api-gateway
+  spec:
+    template:
+      spec:
+        containers:
+        - name: api-gateway
+          env:
+          - name: SPRING_PROFILES_ACTIVE
+            value: "dev,docker"
+          - name: LOG_LEVEL
+            value: "DEBUG"
+          - name: GATEWAY_REQUEST_LOGGING
+            value: "true"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+
+# Patch the service to use NodePort for easy access in dev
+patchesJson6902:
+- target:
+    group: ""
+    version: v1
+    kind: Service
+    name: api-gateway
+  patch: |-
+    - op: replace
+      path: /spec/type
+      value: NodePort
+    - op: add
+      path: /spec/ports/0/nodePort
+      value: 30099
+
+---
+# environments/dev/infrastructure/ingress-nginx/Kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: ingress-nginx-dev
+  namespace: ingress-nginx
+
+# Reference the base ingress-nginx configuration
+resources:
+- ../../../../base/infrastructure/ingress-nginx
+
+# Use ingress-nginx namespace
+namespace: ingress-nginx
+
+# Add environment-specific labels
+commonLabels:
+  environment: dev
+  tier: development
+
+# Use stable image tags for dev
+images:
+- name: registry.k8s.io/ingress-nginx/controller
+  newTag: v1.8.1
+- name: registry.k8s.io/defaultbackend-amd64
+  newTag: "1.5"
+
+# Reduce replicas for dev (save resources)
+replicas:
+- name: nginx-ingress-controller
+  count: 1
+- name: default-http-backend
+  count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+- name: nginx-dev-config
+  literals:
+  - enable-access-log=true
+  - access-log-path=/var/log/nginx/access.log
+  - error-log-path=/var/log/nginx/error.log
+  - log-format-escape-json=true
+  - enable-real-ip=true
+
+# Patch the deployment with dev-specific configurations
+patchesStrategicMerge:
+- |-
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: nginx-ingress-controller
+  spec:
+    template:
+      spec:
+        containers:
+        - name: nginx-ingress-controller
+          args:
+            - /nginx-ingress-controller
+            - --configmap=$(POD_NAMESPACE)/nginx-configuration
+            - --publish-service=$(POD_NAMESPACE)/ingress-nginx-controller
+            - --annotations-prefix=nginx.ingress.kubernetes.io
+            - --report-node-internal-ip-address
+            - --watch-ingress-without-class=true
+            - --default-backend-service=$(POD_NAMESPACE)/default-http-backend
+            - --election-id=ingress-controller-leader
+            - --controller-class=k8s.io/ingress-nginx
+            - --v=2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+
+# Patch the service to use NodePort for dev access
+patchesJson6902:
+- target:
+    group: ""
+    version: v1
+    kind: Service
+    name: ingress-nginx-controller
+  patch: |-
+    - op: replace
+      path: /spec/type
+      value: NodePort
+    - op: add
+      path: /spec/ports/0/nodePort
+      value: 30080
+    - op: add
+      path: /spec/ports/1/nodePort
+      value: 30443

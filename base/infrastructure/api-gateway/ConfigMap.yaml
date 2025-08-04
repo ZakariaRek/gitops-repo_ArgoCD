@@ -1,0 +1,304 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+  namespace: infrastructure
+  labels:
+    app: api-gateway
+    component: infrastructure
+data:
+  application.yml: |
+    server:
+      port: 8099
+      error:
+        include-stacktrace: always
+        include-message: always
+        include-binding-errors: always
+    
+    debug: true
+    
+    spring:
+      profiles:
+        active: docker,kafka
+      config:
+        import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server:8888}
+      kafka:
+        bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service:9092}
+        codecs:
+          max-in-memory-size: 10MB
+      application:
+        name: gateway-service
+      
+      # Redis Configuration for Rate Limiting
+      data:
+        redis:
+          host: ${SPRING_DATA_REDIS_HOST:redis-service}
+          port: ${SPRING_DATA_REDIS_PORT:6379}
+          timeout: 2000ms
+          database: ${SPRING_DATA_REDIS_DATABASE:0}
+          lettuce:
+            pool:
+              max-active: 8
+              max-idle: 8
+              min-idle: 0
+              max-wait: -1ms
+      
+      cloud:
+        gateway:
+          httpclient:
+            wiretap: true
+          httpserver:
+            wiretap: true
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origins: ${CORS_CONFIGURATION_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8080}
+                allowed-methods: ${CORS_CONFIGURATION_ALLOWED_METHODS:GET,POST,PUT,DELETE,OPTIONS,PATCH}
+                allowed-headers: ${CORS_CONFIGURATION_ALLOWED_HEADERS:*}
+                allow-credentials: ${CORS_CONFIGURATION_ALLOW_CREDENTIALS:true}
+                max-age: ${CORS_CONFIGURATION_MAX_AGE:3600}
+          
+          # Built-in Redis Rate Limiter
+          redis-rate-limiter:
+            replenish-rate: 10
+            burst-capacity: 20
+            requested-tokens: 1
+          
+          # Discovery Configuration
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+    
+    # Rate limiting configuration
+    rate-limiting:
+      default:
+        limit: 100
+        window-seconds: 60
+        key-type: IP
+      endpoints:
+        auth:
+          limit: 5
+          window-seconds: 60
+          key-type: IP
+        payment:
+          limit: 3
+          window-seconds: 300
+          key-type: USER
+        admin:
+          limit: 20
+          window-seconds: 60
+          key-type: USER
+        public-read:
+          limit: 200
+          window-seconds: 60
+          key-type: IP
+        user-operations:
+          limit: 50
+          window-seconds: 60
+          key-type: USER
+    
+    # Eureka Configuration
+    eureka:
+      instance:
+        preferIpAddress: true
+        instanceId: ${spring.application.name}:${server.port}
+        hostname: api-gateway
+        metadataMap:
+          instanceId: ${spring.application.name}:${server.port}
+      client:
+        registryFetchIntervalSeconds: 5
+        instanceInfoReplicationIntervalSeconds: 5
+        initialInstanceInfoReplicationIntervalSeconds: 5
+        eurekaServiceUrlPollIntervalSeconds: 5
+        cacheRefreshExecutorThreadPoolSize: 2
+        registerWithEureka: true
+        fetchRegistry: true
+        serviceUrl:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server:8761/eureka}
+    
+    # Management and Monitoring
+    management:
+      security:
+        enabled: false
+      health:
+        circuitbreakers:
+          enabled: true
+        redis:
+          enabled: true
+        diskspace:
+          enabled: true
+      endpoint:
+        health:
+          show-details: "ALWAYS"
+          show-components: "ALWAYS"
+        circuitbreakers:
+          enabled: true
+        metrics:
+          enabled: true
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+          cors:
+            allowed-origins: "*"
+            allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+      metrics:
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+          percentiles:
+            http.server.requests: 0.5, 0.95, 0.99
+        tags:
+          application: ${spring.application.name}
+    
+    # Custom Security Configuration
+    gateway:
+      security:
+        public-endpoints:
+          - "/api/users/auth/signin"
+          - "/api/users/auth/signup"
+          - "/api/test/all"
+          - "/swagger-ui/**"
+          - "/v3/api-docs/**"
+          - "/actuator/**"
+          - "/health"
+          - "/api/gateway/**"
+          - "/*/swagger-ui/**"
+          - "/*/v3/api-docs/**"
+          - "/swagger-resources/**"
+          - "/docs"
+          - "/swagger-docs"
+          - "/swagger-ui.html"
+          - "/webjars/**"
+        admin-only-endpoints:
+          - "/api/users/api/users/**"
+          - "/api/test/admin"
+          - "/api/gateway/circuit-breakers/*/reset"
+          - "/api/gateway/rate-limiting/reset/**"
+        moderator-endpoints:
+          - "/api/test/mod"
+    
+    # Service URLs
+    services:
+      cart-service:
+        url: ${SERVICES_CART_SERVICE_URL:http://cart-service}
+      product-service:
+        url: ${SERVICES_PRODUCT_SERVICE_URL:http://product-service}
+    
+    # SpringDoc Configuration
+    springdoc:
+      api-docs:
+        enabled: true
+        path: /v3/api-docs
+        groups:
+          enabled: true
+      swagger-ui:
+        enabled: true
+        path: /swagger-ui.html
+        config-url: /v3/api-docs/swagger-config
+        disable-swagger-default-url: true
+        display-request-duration: true
+        show-extensions: true
+        show-common-extensions: true
+        default-models-expand-depth: 1
+        default-model-expand-depth: 1
+    
+    # Resilience4j Configuration
+    resilience4j:
+      circuitbreaker:
+        configs:
+          default:
+            slidingWindowSize: 10
+            minimumNumberOfCalls: 5
+            failureRateThreshold: 50
+            waitDurationInOpenState: 30s
+            permittedNumberOfCallsInHalfOpenState: 3
+            automaticTransitionFromOpenToHalfOpenEnabled: true
+            registerHealthIndicator: true
+            writableStackTraceEnabled: true
+            eventConsumerBufferSize: 100
+        instances:
+          auth-cb:
+            base-config: default
+          user-test-cb:
+            base-config: default
+          user-mgmt-cb:
+            base-config: default
+          product-read-cb:
+            base-config: default
+            slidingWindowSize: 20
+            minimumNumberOfCalls: 10
+            failureRateThreshold: 60
+          product-write-cb:
+            base-config: default
+            failureRateThreshold: 40
+          order-cb:
+            base-config: default
+            slidingWindowSize: 15
+            minimumNumberOfCalls: 7
+          payment-cb:
+            base-config: default
+            slidingWindowSize: 5
+            minimumNumberOfCalls: 3
+            failureRateThreshold: 30
+            waitDurationInOpenState: 60s
+          cart-cb:
+            base-config: default
+            slidingWindowSize: 15
+            minimumNumberOfCalls: 8
+            failureRateThreshold: 55
+          loyalty-cb:
+            base-config: default
+            slidingWindowSize: 15
+            minimumNumberOfCalls: 7
+          notification-cb:
+            base-config: default
+            slidingWindowSize: 15
+            minimumNumberOfCalls: 7
+          shipping-cb:
+            base-config: default
+            slidingWindowSize: 15
+            minimumNumberOfCalls: 7
+      
+      timelimiter:
+        configs:
+          default:
+            timeoutDuration: 10s
+            cancelRunningFuture: true
+        instances:
+          auth-cb:
+            base-config: default
+            timeoutDuration: 5s
+          product-read-cb:
+            base-config: default
+            timeoutDuration: 15s
+          order-cb:
+            base-config: default
+            timeoutDuration: 20s
+          payment-cb:
+            base-config: default
+            timeoutDuration: 30s
+      
+      retry:
+        configs:
+          default:
+            maxAttempts: 3
+            waitDuration: 1s
+            enableExponentialBackoff: true
+            exponentialBackoffMultiplier: 2
+        instances:
+          auth-cb:
+            base-config: default
+            maxAttempts: 2
+          payment-cb:
+            base-config: default
+            maxAttempts: 2
+            waitDuration: 2s
+    
+    # WebClient Configuration
+    webclient:
+      timeout:
+        connection: 5000
+        read: 10000
+        write: 10000

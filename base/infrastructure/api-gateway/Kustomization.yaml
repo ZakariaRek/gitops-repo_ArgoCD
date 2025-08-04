@@ -1,0 +1,55 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: api-gateway
+  namespace: infrastructure
+
+resources:
+- Deployment.yaml
+- Service.yaml
+- ConfigMap.yaml
+- Secret.yaml
+
+commonLabels:
+  app: api-gateway
+  component: infrastructure
+  version: latest
+
+images:
+- name: yahyazakaria123/ecommerce-app-api-gateway-service
+  newTag: latest
+
+namespace: infrastructure
+
+replicas:
+- name: api-gateway
+  count: 2
+
+configMapGenerator:
+- name: api-gateway-env-config
+  literals:
+  - SPRING_PROFILES_ACTIVE=docker,kafka
+  - LOG_LEVEL=INFO
+  - GATEWAY_TIMEOUT=30s
+  - DEBUG=true
+
+# Add patches for resource adjustments
+patchesStrategicMerge:
+- |-
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: api-gateway
+  spec:
+    template:
+      spec:
+        containers:
+        - name: api-gateway
+          # Add volume mounts for logs if needed
+          volumeMounts:
+          - name: logs-volume
+            mountPath: /app/logs
+        volumes:
+        - name: logs-volume
+          emptyDir: {}
