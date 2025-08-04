@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nexus-data-layer
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/nexus-commerce-gitops.git
+    targetRevision: HEAD
+    path: environments/dev/data
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    # Manual sync for data layer - more control needed
