@@ -11,10 +11,12 @@ resources:
 - ConfigMap.yaml
 - Secret.yaml
 
-commonLabels:
-  app: user-service
-  component: microservices
-  version: latest
+# Use 'labels' instead of deprecated 'commonLabels'
+labels:
+- pairs:
+    app: user-service
+    component: microservices
+    version: latest
 
 images:
 - name: yahyazakaria123/ecommerce-app-user-service
