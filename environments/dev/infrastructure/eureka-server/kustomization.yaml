@@ -2,12 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 metadata:
-  name: config-server-dev
+  name: eureka-server-dev
   namespace: dev-infrastructure
 
-# Reference the base config-server configuration
+# Reference the base eureka-server configuration
 resources:
-- ../../../base/infrastructure/config-server
+- ../../../../base/infrastructure/eureka-server
 
 # Override namespace for dev environment
 namespace: dev-infrastructure
@@ -19,22 +19,21 @@ commonLabels:
 
 # Use development image tag
 images:
-- name: yahyazakaria123/ecommerce-app-config-serveur
+- name: yahyazakaria123/ecommerce-app-discovery-service
   newTag: dev-latest
 
 # Reduce replicas for dev (save resources)
 replicas:
-- name: config-server
+- name: eureka-server
   count: 1
 
 # Generate additional ConfigMap with dev-specific settings
 configMapGenerator:
-- name: config-server-dev-config
+- name: eureka-server-dev-config
   literals:
   - LOG_LEVEL=DEBUG
   - SPRING_PROFILES_ACTIVE=dev,docker
-  - CONFIG_SERVER_GIT_BRANCH=develop
-  - EUREKA_INSTANCE_HOSTNAME=config-server-dev
+  - EUREKA_INSTANCE_HOSTNAME=eureka-server-dev
 
 # Patch the deployment with dev-specific configurations
 patchesStrategicMerge:
@@ -42,19 +41,19 @@ patchesStrategicMerge:
   apiVersion: apps/v1
   kind: Deployment
   metadata:
-    name: config-server
+    name: eureka-server
   spec:
     template:
       spec:
         containers:
-        - name: config-server
+        - name: eureka-server
           env:
           - name: SPRING_PROFILES_ACTIVE
             value: "dev,docker"
           - name: LOG_LEVEL
             value: "DEBUG"
-          - name: SPRING_CLOUD_CONFIG_SERVER_GIT_DEFAULT_LABEL
-            value: "develop"
+          - name: EUREKA_INSTANCE_HOSTNAME
+            value: "eureka-server-dev"
           resources:
             requests:
               memory: "256Mi"
@@ -69,11 +68,11 @@ patchesJson6902:
     group: ""
     version: v1
     kind: Service
-    name: config-server
+    name: eureka-server
   patch: |-
     - op: replace
       path: /spec/type
       value: NodePort
     - op: add
       path: /spec/ports/0/nodePort
-      value: 30888
+      value: 30761
