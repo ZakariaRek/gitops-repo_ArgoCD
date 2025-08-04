@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/nexus-commerce-gitops.git
+    repoURL: https://github.com/ZakariaRek/gitops-repo_ArgoCD
     targetRevision: HEAD
     path: environments/dev/observability
   destination:
