@@ -37,15 +37,6 @@ configMapGenerator:
   - NOTIFICATION_PUSH_ENABLED=false
   - NOTIFICATION_WEBSOCKET_ENABLED=false
 
-# Email templates ConfigMap (optional)
-- name: notification-email-templates
-  files:
-  - templates/welcome-email.html
-  - templates/order-confirmation.html
-  - templates/payment-confirmation.html
-  - templates/shipping-notification.html
-  options:
-    disableNameSuffixHash: true
 
 # Use the new patches syntax instead of deprecated patchesStrategicMerge
 patches:
