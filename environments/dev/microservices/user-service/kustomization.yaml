@@ -9,7 +9,7 @@ metadata:
 resources:
 - ../../../../base/microservices/user-service
 
-# Use ecommerce namespace for microservices
+# Use microservices namespace
 namespace: microservices
 
 # Add environment-specific labels
@@ -36,13 +36,14 @@ configMapGenerator:
   - ENABLE_REQUEST_LOGGING=true
   - JWT_EXPIRATION=86400000
 
-# Patch the deployment with dev-specific configurations
+# Use the new patches syntax for better compatibility
 patches:
 - patch: |-
     apiVersion: apps/v1
     kind: Deployment
     metadata:
       name: user-service
+      namespace: microservices
     spec:
       template:
         spec:
@@ -77,6 +78,7 @@ patches:
     kind: Service
     metadata:
       name: user-service
+      namespace: microservices
     spec:
       type: NodePort
       ports:

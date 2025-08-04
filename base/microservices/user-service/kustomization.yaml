@@ -33,22 +33,24 @@ configMapGenerator:
   - LOG_LEVEL=INFO
   - JWT_EXPIRATION=86400000
 
-# Add patches for resource adjustments
-patchesStrategicMerge:
-- |-
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    name: user-service
-  spec:
-    template:
-      spec:
-        containers:
-        - name: user-service
-          # Add volume mounts for logs if needed
-          volumeMounts:
+# Use the new patches syntax instead of deprecated patchesStrategicMerge
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: user-service
+    spec:
+      template:
+        spec:
+          containers:
+          - name: user-service
+            volumeMounts:
+            - name: logs-volume
+              mountPath: /app/logs
+          volumes:
           - name: logs-volume
-            mountPath: /app/logs
-        volumes:
-        - name: logs-volume
-          emptyDir: {}
+            emptyDir: {}
+  target:
+    kind: Deployment
+    name: user-service
