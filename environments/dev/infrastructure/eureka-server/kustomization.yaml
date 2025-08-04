@@ -6,9 +6,10 @@ resources:
 
 namespace: dev-infrastructure
 
-commonLabels:
-  environment: dev
-  tier: development
+labels:
+- pairs:
+    environment: dev
+    tier: development
 
 images:
 - name: yahyazakaria123/ecommerce-app-discovery-service
@@ -24,7 +25,6 @@ configMapGenerator:
   - LOG_LEVEL=DEBUG
   - SPRING_PROFILES_ACTIVE=dev,docker
 
-# Modern patch syntax
 patches:
 - patch: |-
     apiVersion: apps/v1
