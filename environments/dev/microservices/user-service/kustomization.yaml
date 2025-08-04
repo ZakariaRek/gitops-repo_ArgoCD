@@ -12,10 +12,11 @@ resources:
 # Use microservices namespace
 namespace: microservices
 
-# Add environment-specific labels
-commonLabels:
-  environment: dev
-  tier: development
+# Add environment-specific labels - FIXED: replaced commonLabels with labels
+labels:
+- pairs:
+    environment: dev
+    tier: development
 
 # Use development image tag
 images:
