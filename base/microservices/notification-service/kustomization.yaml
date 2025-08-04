@@ -1,0 +1,77 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: notification-service
+  namespace: microservices
+
+resources:
+- Deployment.yaml
+- Service.yaml
+- ConfigMap.yaml
+- Secret.yaml
+
+# Use 'labels' instead of deprecated 'commonLabels'
+labels:
+- pairs:
+    app: notification-service
+    component: microservices
+    version: latest
+
+images:
+- name: yahyazakaria123/ecommerce-app-notification-service
+  newTag: latest
+
+namespace: microservices
+
+replicas:
+- name: notification-service
+  count: 2
+
+configMapGenerator:
+- name: notification-service-env-config
+  literals:
+  - SPRING_PROFILES_ACTIVE=docker,kafka
+  - LOG_LEVEL=INFO
+  - NOTIFICATION_SMS_ENABLED=false
+  - NOTIFICATION_PUSH_ENABLED=false
+  - NOTIFICATION_WEBSOCKET_ENABLED=false
+
+# Email templates ConfigMap (optional)
+- name: notification-email-templates
+  files:
+  - templates/welcome-email.html
+  - templates/order-confirmation.html
+  - templates/payment-confirmation.html
+  - templates/shipping-notification.html
+  options:
+    disableNameSuffixHash: true
+
+# Use the new patches syntax instead of deprecated patchesStrategicMerge
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: notification-service
+    spec:
+      template:
+        spec:
+          containers:
+          - name: notification-service
+            volumeMounts:
+            - name: logs-volume
+              mountPath: /app/logs
+            - name: email-templates
+              mountPath: /app/templates/email
+              readOnly: true
+          volumes:
+          - name: logs-volume
+            emptyDir: {}
+          - name: email-templates
+            configMap:
+              name: notification-email-templates
+              optional: true
+  target:
+    kind: Deployment
+    name: notification-service

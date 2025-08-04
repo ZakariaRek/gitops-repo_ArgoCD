@@ -1,0 +1,129 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: microservices
+  labels:
+    app: notification-service
+    component: microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+        component: microservices
+    spec:
+      containers:
+      - name: notification-service
+        image: yahyazakaria123/ecommerce-app-notification-service:latest
+        ports:
+        - containerPort: 8086
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "docker,kafka"
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-server.infrastructure.svc.cluster.local:8888"
+        - name: SPRING_APPLICATION_NAME
+          value: "notification-service"
+        - name: SERVER_PORT
+          value: "8086"
+        # MongoDB configuration
+        - name: SPRING_DATA_MONGODB_URI
+          value: "mongodb://mongo-service.data.svc.cluster.local:27017/notificationdb"
+        - name: SPRING_DATA_MONGODB_DATABASE
+          value: "notificationdb"
+        # Redis configuration for caching
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis-service.data.svc.cluster.local"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        - name: SPRING_DATA_REDIS_DATABASE
+          value: "3"
+        # Kafka configuration
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-service.data.svc.cluster.local:9092"
+        # Email configuration
+        - name: SPRING_MAIL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: mail-host
+        - name: SPRING_MAIL_PORT
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: mail-port
+        - name: SPRING_MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: mail-username
+        - name: SPRING_MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: mail-password
+        # Notification specific configuration
+        - name: NOTIFICATION_EMAIL_FROM
+          valueFrom:
+            secretKeyRef:
+              name: notification-service-secrets
+              key: email-from
+        - name: NOTIFICATION_SMS_ENABLED
+          value: "false"
+        - name: NOTIFICATION_PUSH_ENABLED
+          value: "false"
+        - name: NOTIFICATION_WEBSOCKET_ENABLED
+          value: "false"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8086
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8086
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8086
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 18
+        # Volume mounts for logs and templates
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: email-templates
+          mountPath: /app/templates/email
+          readOnly: true
+      volumes:
+      - name: logs-volume
+        emptyDir: {}
+      - name: email-templates
+        configMap:
+          name: notification-email-templates
+          optional: true

@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: microservices
+  labels:
+    app: user-service
+    component: microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+        component: microservices
+    spec:
+      containers:
+      - name: user-service
+        image: yahyazakaria123/ecommerce-app-user-service:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "docker,kafka"
+        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+          value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+        - name: SPRING_CLOUD_CONFIG_URI
+          value: "http://config-server.infrastructure.svc.cluster.local:8888"
+        - name: SPRING_APPLICATION_NAME
+          value: "user-service"
+        - name: SERVER_PORT
+          value: "8080"
+        # Database configuration
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/userdb"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: user-service-secrets
+              key: db-username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: user-service-secrets
+              key: db-password
+        # Redis configuration for caching/sessions
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis-service.data.svc.cluster.local"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
+        - name: SPRING_DATA_REDIS_DATABASE
+          value: "1"
+        # Kafka configuration
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "kafka-service.data.svc.cluster.local:9092"
+        # JWT Configuration
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: user-service-secrets
+              key: jwt-secret
+        - name: JWT_EXPIRATION
+          value: "86400000"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        startupProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 18
+    
