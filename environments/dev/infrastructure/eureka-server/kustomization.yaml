@@ -1,74 +1,68 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Reference the base eureka-server configuration
 resources:
 - ../../../../base/infrastructure/eureka-server
 
-# Override namespace for dev environment
 namespace: dev-infrastructure
 
-# Add environment-specific labels
 commonLabels:
   environment: dev
   tier: development
 
-# Use development image tag
 images:
 - name: yahyazakaria123/ecommerce-app-discovery-service
   newTag: dev-latest
 
-# Reduce replicas for dev (save resources)
 replicas:
 - name: eureka-server
   count: 1
 
-# Generate additional ConfigMap with dev-specific settings
 configMapGenerator:
 - name: eureka-server-dev-config
   literals:
   - LOG_LEVEL=DEBUG
   - SPRING_PROFILES_ACTIVE=dev,docker
-  - EUREKA_INSTANCE_HOSTNAME=eureka-server-dev
 
-# Patch the deployment with dev-specific configurations
-patchesStrategicMerge:
-- |-
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata:
+# Modern patch syntax
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: eureka-server
+    spec:
+      template:
+        spec:
+          containers:
+          - name: eureka-server
+            env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev,docker"
+            - name: LOG_LEVEL
+              value: "DEBUG"
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "250m"
+  target:
+    kind: Deployment
     name: eureka-server
-  spec:
-    template:
-      spec:
-        containers:
-        - name: eureka-server
-          env:
-          - name: SPRING_PROFILES_ACTIVE
-            value: "dev,docker"
-          - name: LOG_LEVEL
-            value: "DEBUG"
-          - name: EUREKA_INSTANCE_HOSTNAME
-            value: "eureka-server-dev"
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "512Mi"
-              cpu: "250m"
-
-# Patch the service to use NodePort for easy access in dev
-patchesJson6902:
-- target:
-    group: ""
-    version: v1
+- patch: |-
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: eureka-server
+    spec:
+      type: NodePort
+      ports:
+      - name: http
+        port: 8761
+        targetPort: 8761
+        nodePort: 30761
+  target:
     kind: Service
     name: eureka-server
-  patch: |-
-    - op: replace
-      path: /spec/type
-      value: NodePort
-    - op: add
-      path: /spec/ports/0/nodePort
-      value: 30761
