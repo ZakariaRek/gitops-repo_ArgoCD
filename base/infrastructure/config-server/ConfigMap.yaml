@@ -18,7 +18,7 @@ data:
         config:
           server:
             git:
-              uri: ${SPRING_CLOUD_CONFIG_SERVER_GIT_URI:https://github.com/your-org/config-repo.git}
+              uri: ${SPRING_CLOUD_CONFIG_SERVER_GIT_URI:https://github.com/Saoudyahya/Ecommerce-App-Config-serveur-repo.git}
               clone-on-start: true
               default-label: main
       profiles:

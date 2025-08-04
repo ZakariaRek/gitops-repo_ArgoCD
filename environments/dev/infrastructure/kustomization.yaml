@@ -5,8 +5,8 @@ resources:
 - config-server
 - eureka-server
 # - simple-ingress
-# - api-gateway
-# - ingress-nginx
+- api-gateway
+- ingress-nginx
 # - health-ingress
 # - default-http-backend
 
