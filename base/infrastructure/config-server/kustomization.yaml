@@ -8,15 +8,16 @@ resources:
 
 labels:
 - pairs:
-    app: eureka-server
+    app: config-server
     component: infrastructure
+    version: latest
 
 images:
-- name: yahyazakaria123/ecommerce-app-discovery-service
+- name: yahyazakaria123/ecommerce-app-config-serveur
   newTag: latest
 
 namespace: infrastructure
 
 replicas:
-- name: eureka-server
+- name: config-server
   count: 2
