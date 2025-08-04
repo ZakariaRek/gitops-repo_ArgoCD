@@ -2,39 +2,41 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 metadata:
-  name: user-service-dev
+  name: product-service-dev
   namespace: microservices
 
-# Reference the base user-service configuration
+# Reference the base product-service configuration
 resources:
-- ../../../../base/microservices/user-service
+- ../../../../base/microservices/product-service
 
 # Use microservices namespace
 namespace: microservices
 
-# Add environment-specific labels
-commonLabels:
-  environment: dev
-  tier: development
+# Add environment-specific labels - use 'labels' instead of deprecated 'commonLabels'
+labels:
+- pairs:
+    environment: dev
+    tier: development
 
 # Use development image tag
 images:
-- name: yahyazakaria123/ecommerce-app-user-service
+- name: yahyazakaria123/ecommerce-app-product-service
   newTag: latest  # You can change to dev-latest when available
 
 # Reduce replicas for dev (save resources)
 replicas:
-- name: user-service
+- name: product-service
   count: 1
 
 # Generate additional ConfigMap with dev-specific settings
 configMapGenerator:
-- name: user-service-dev-config
+- name: product-service-dev-config
   literals:
   - LOG_LEVEL=DEBUG
   - SPRING_PROFILES_ACTIVE=dev,docker,kafka
   - ENABLE_REQUEST_LOGGING=true
-  - JWT_EXPIRATION=86400000
+  - PRODUCT_CACHE_TTL=1800
+  - PRODUCT_PAGINATION_DEFAULT_SIZE=10
 
 # Use the new patches syntax for better compatibility
 patches:
@@ -42,13 +44,13 @@ patches:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: user-service
+      name: product-service
       namespace: microservices
     spec:
       template:
         spec:
           containers:
-          - name: user-service
+          - name: product-service
             env:
             - name: SPRING_PROFILES_ACTIVE
               value: "dev,docker,kafka"
@@ -58,9 +60,9 @@ patches:
               value: "true"
             # Dev-specific database configuration
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/userdb_dev"
+              value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb_dev"
             - name: SPRING_DATA_REDIS_DATABASE
-              value: "1"
+              value: "2"
             resources:
               requests:
                 memory: "256Mi"
@@ -70,22 +72,22 @@ patches:
                 cpu: "250m"
   target:
     kind: Deployment
-    name: user-service
+    name: product-service
 
 # Patch the service to use NodePort for easy access in dev
 - patch: |-
     apiVersion: v1
     kind: Service
     metadata:
-      name: user-service
+      name: product-service
       namespace: microservices
     spec:
       type: NodePort
       ports:
       - name: http
-        port: 8080
-        targetPort: 8080
-        nodePort: 30080
+        port: 8081
+        targetPort: 8081
+        nodePort: 30081
   target:
     kind: Service
-    name: user-service
+    name: product-service
