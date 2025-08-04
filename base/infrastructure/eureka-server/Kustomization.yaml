@@ -6,9 +6,9 @@ metadata:
   namespace: infrastructure
 
 resources:
-- deployment.yaml
-- service.yaml
-- configmap.yaml
+- Deployment.yaml
+- Service.yaml
+- ConfigMap.yaml
 
 commonLabels:
   app: eureka-server
