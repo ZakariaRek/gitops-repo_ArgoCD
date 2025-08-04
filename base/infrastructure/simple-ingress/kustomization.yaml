@@ -11,8 +11,9 @@ resources:
 - ingressclass.yaml
 - configmap.yaml
 
-commonLabels:
-  app: simple-ingress
-  component: ingress-controller
+labels:
+- pairs:
+    app: simple-ingress
+    component: ingress-controller
 
 namespace: ingress-nginx

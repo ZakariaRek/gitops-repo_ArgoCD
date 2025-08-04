@@ -6,4 +6,4 @@ metadata:
 data:
   client-max-body-size: "50m"
   proxy-connect-timeout: "60"
-  proxy-read-timeout: "60"
+  proxy-read-timeout: "60"  

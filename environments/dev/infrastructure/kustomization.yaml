@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
 - config-server
 - eureka-server
-- simple-ingress
+# - simple-ingress
 # - api-gateway
 # - ingress-nginx
 # - health-ingress
