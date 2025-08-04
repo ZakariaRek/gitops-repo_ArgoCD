@@ -1,0 +1,104 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: notification-service-dev
+  namespace: microservices
+
+# Reference the base notification-service configuration
+resources:
+- ../../../../base/microservices/notification-service
+- notification-service-ingress.yaml
+
+# Use microservices namespace
+namespace: microservices
+
+# Add environment-specific labels
+labels:
+- pairs:
+    environment: dev
+    tier: development
+
+# Use development image tag
+images:
+- name: yahyazakaria123/ecommerce-app-notification-service
+  newTag: latest  # You can change to dev-latest when available
+
+# Reduce replicas for dev (save resources)
+replicas:
+- name: notification-service
+  count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+- name: notification-service-dev-config
+  literals:
+  - LOG_LEVEL=DEBUG
+  - SPRING_PROFILES_ACTIVE=dev,docker,kafka
+  - ENABLE_REQUEST_LOGGING=true
+  - NOTIFICATION_SMS_ENABLED=false
+  - NOTIFICATION_PUSH_ENABLED=false
+  - NOTIFICATION_WEBSOCKET_ENABLED=true
+
+# Use the new patches syntax for better compatibility
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: notification-service
+      namespace: microservices
+    spec:
+      template:
+        spec:
+          containers:
+          - name: notification-service
+            env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev,docker,kafka"
+            - name: LOG_LEVEL
+              value: "DEBUG"
+            - name: ENABLE_REQUEST_LOGGING
+              value: "true"
+            # Dev-specific MongoDB configuration
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://mongo-service.data.svc.cluster.local:27017/notificationdb_dev"
+            - name: SPRING_DATA_MONGODB_DATABASE
+              value: "notificationdb_dev"
+            - name: SPRING_DATA_REDIS_DATABASE
+              value: "3"
+            # Enable additional features for dev
+            - name: NOTIFICATION_WEBSOCKET_ENABLED
+              value: "true"
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "250m"
+  target:
+    kind: Deployment
+    name: notification-service
+
+# Patch the service to use NodePort for easy access in dev
+- patch: |-
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: notification-service
+      namespace: microservices
+    spec:
+      type: NodePort
+      ports:
+      - name: http
+        port: 8086
+        targetPort: 8086
+        nodePort: 30086
+      - name: sse
+        port: 8087
+        targetPort: 8087
+        nodePort: 30087
+  target:
+    kind: Service
+    name: notification-service

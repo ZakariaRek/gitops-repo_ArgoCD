@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-service-config
+  namespace: microservices
+  labels:
+    app: notification-service
+    component: microservices
+data:
+  application.yml: |
+    server:
+      port: 8086
+      error:
+        include-stacktrace: on_param
+        include-message: always
+    
+    spring:
+      application:
+        name: notification-service
+      profiles:
+        active: docker,kafka
+      config:
+        import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+      
+      # MongoDB Configuration
+      data:
+        mongodb:
+          uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongo-service.data.svc.cluster.local:27017/notificationdb}
+          database: ${SPRING_DATA_MONGODB_DATABASE:notificationdb}
+          
+        # Redis Configuration for caching
+        redis:
+          host: ${SPRING_DATA_REDIS_HOST:redis-service.data.svc.cluster.local}
+          port: ${SPRING_DATA_REDIS_PORT:6379}
+          timeout: 2000ms
+          database: ${SPRING_DATA_REDIS_DATABASE:3}
+          lettuce:
+            pool:
+              max-active: 8
+              max-idle: 8
+              min-idle: 0
+              max-wait: -1ms
+      
+      # Kafka Configuration
+      kafka:
+        bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+        consumer:
+          group-id: notification-service-group
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+      
+      # Email Configuration (SMTP)
+      mail:
+        host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+        port: ${SPRING_MAIL_PORT:587}
+        username: ${SPRING_MAIL_USERNAME:}
+        password: ${SPRING_MAIL_PASSWORD:}
+        properties:
+          mail:
+            smtp:
+              auth: true
+              starttls:
+                enable: true
+              connectiontimeout: 5000
+              timeout: 3000
+              writetimeout: 5000
+    
+    # Eureka Configuration
+    eureka:
+      instance:
+        preferIpAddress: true
+        instanceId: ${spring.application.name}:${server.port}
+        hostname: notification-service
+        metadataMap:
+          instanceId: ${spring.application.name}:${server.port}
+      client:
+        registryFetchIntervalSeconds: 5
+        instanceInfoReplicationIntervalSeconds: 5
+        initialInstanceInfoReplicationIntervalSeconds: 5
+        eurekaServiceUrlPollIntervalSeconds: 5
+        registerWithEureka: true
+        fetchRegistry: true
+        serviceUrl:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
+    
+    # Management and Monitoring
+    management:
+      health:
+        circuitbreakers:
+          enabled: true
+        redis:
+          enabled: true
+        mongo:
+          enabled: true
+        mail:
+          enabled: true
+      endpoint:
+        health:
+          show-details: "ALWAYS"
+          show-components: "ALWAYS"
+        metrics:
+          enabled: true
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+          cors:
+            allowed-origins: "*"
+            allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+      metrics:
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+          percentiles:
+            http.server.requests: 0.5, 0.95, 0.99
+        tags:
+          application: ${spring.application.name}
+    
+    # Logging Configuration
+    logging:
+      level:
+        com.nexuscommerce.notificationservice: INFO
+        org.springframework.web: INFO
+        org.springframework.data.mongodb: INFO
+        org.springframework.kafka: INFO
+        org.springframework.mail: DEBUG
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    
+    # SpringDoc Configuration
+    springdoc:
+      api-docs:
+        enabled: true
+        path: /v3/api-docs
+      swagger-ui:
+        enabled: true
+        path: /swagger-ui.html
+    
+    # Notification Service Specific Configuration
+    notification:
+      email:
+        from: ${NOTIFICATION_EMAIL_FROM:noreply@nexuscommerce.com}
+        template-path: ${NOTIFICATION_EMAIL_TEMPLATE_PATH:classpath:/templates/email/}
+        retry:
+          max-attempts: 3
+          delay: 1000
+      sms:
+        enabled: ${NOTIFICATION_SMS_ENABLED:false}
+        provider: ${NOTIFICATION_SMS_PROVIDER:twilio}
+      push:
+        enabled: ${NOTIFICATION_PUSH_ENABLED:false}
+        provider: ${NOTIFICATION_PUSH_PROVIDER:fcm}
+      realtime:
+        sse:
+          enabled: true
+          timeout: 0  # Never timeout for SSE connections
+        websocket:
+          enabled: ${NOTIFICATION_WEBSOCKET_ENABLED:false}
+      kafka:
+        topics:
+          payment-confirmed: payment-confirmed
+          order-created: order-created
+          order-shipped: order-shipped
+          user-registered: user-registered
+          notification-read: notification-read
+      cache:
+        notification-ttl: 86400  # 24 hours
+        template-ttl: 3600       # 1 hour
