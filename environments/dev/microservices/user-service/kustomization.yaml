@@ -1,19 +1,92 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+metadata:
+  name: user-service-dev
+  namespace: microservices
+
+# Reference the base user-service configuration
 resources:
 - ../../../../base/microservices/user-service
 
+# Use microservices namespace
 namespace: microservices
 
+# Add environment-specific labels - FIXED: replaced commonLabels with labels
 labels:
 - pairs:
     environment: dev
+    tier: development
 
+# Use development image tag
 images:
 - name: yahyazakaria123/ecommerce-app-user-service
-  newTag: latest
+  newTag: latest  # You can change to dev-latest when available
 
+# Reduce replicas for dev (save resources)
 replicas:
 - name: user-service
   count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+- name: user-service-dev-config
+  literals:
+  - LOG_LEVEL=DEBUG
+  - SPRING_PROFILES_ACTIVE=dev,docker,kafka
+  - ENABLE_REQUEST_LOGGING=true
+  - JWT_EXPIRATION=86400000
+
+# Use the new patches syntax for better compatibility
+patches:
+- patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: user-service
+      namespace: microservices
+    spec:
+      template:
+        spec:
+          containers:
+          - name: user-service
+            env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev,docker,kafka"
+            - name: LOG_LEVEL
+              value: "DEBUG"
+            - name: ENABLE_REQUEST_LOGGING
+              value: "true"
+            # Dev-specific database configuration
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/userdb_dev"
+            - name: SPRING_DATA_REDIS_DATABASE
+              value: "1"
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "250m"
+  target:
+    kind: Deployment
+    name: user-service
+
+# Patch the service to use NodePort for easy access in dev
+- patch: |-
+    apiVersion: v1
+    kind: Service
+    metadata:
+      name: user-service
+      namespace: microservices
+    spec:
+      type: NodePort
+      ports:
+      - name: http
+        port: 8080
+        targetPort: 8080
+        nodePort: 30080
+  target:
+    kind: Service
+    name: user-service
