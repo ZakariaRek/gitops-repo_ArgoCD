@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
 - ../../../../base/infrastructure/config-server
 
-namespace: dev-infrastructure
+namespace: infrastructure
 
 labels:
 - pairs:
