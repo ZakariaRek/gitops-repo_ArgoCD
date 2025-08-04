@@ -6,11 +6,13 @@ resources:
 - user-service
 - product-service
 - notification-service
+- payment-service
 
 # Use 'labels' instead of deprecated 'commonLabels'
 labels:
 - pairs:
     environment: dev
     managed-by: argocd
+    platform: nexus-commerce
 
 namespace: microservices

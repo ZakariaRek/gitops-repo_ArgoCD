@@ -1,0 +1,270 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: microservices
+  labels:
+    app: payment-service
+    component: microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        component: microservices
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: payment-service
+        image: yahyazakaria123/ecommerce-app-payment-service:latest
+        ports:
+        - containerPort: 8084
+          name: http
+          protocol: TCP
+        env:
+        # Go Application Settings
+        - name: PORT
+          value: "8084"
+        - name: GIN_MODE
+          value: "release"
+        - name: GOOS
+          value: "linux"
+        - name: GOARCH
+          value: "amd64"
+        
+        # Service Configuration
+        - name: SERVICE_NAME
+          value: "payment-service"
+        - name: SERVICE_VERSION
+          value: "1.0.0"
+        - name: ENVIRONMENT
+          value: "docker"
+        
+        # Database Configuration
+        - name: DB_HOST
+          value: "postgres-service.data.svc.cluster.local"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "paymentdb"
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: db-username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: db-password
+        - name: DB_SSLMODE
+          value: "disable"
+        - name: DB_MAX_OPEN_CONNS
+          value: "25"
+        - name: DB_MAX_IDLE_CONNS
+          value: "5"
+        
+        # Redis Configuration
+        - name: REDIS_HOST
+          value: "redis-service.data.svc.cluster.local"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: REDIS_DB
+          value: "4"
+        - name: REDIS_PASSWORD
+          value: ""
+        
+        # Kafka Configuration
+        - name: KAFKA_BROKERS
+          value: "kafka-service.data.svc.cluster.local:9092"
+        - name: KAFKA_CONSUMER_GROUP
+          value: "payment-service-group"
+        
+        # Payment Provider Configuration
+        - name: STRIPE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: stripe-api-key
+        - name: STRIPE_WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: stripe-webhook-secret
+        - name: PAYPAL_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: paypal-client-id
+              optional: true
+        - name: PAYPAL_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: paypal-client-secret
+              optional: true
+        
+        # Security Configuration
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: jwt-secret
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: payment-service-secrets
+              key: encryption-key
+        
+        # Service Discovery
+        - name: EUREKA_URL
+          value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+        - name: INSTANCE_ID
+          value: "payment-service:8084"
+        
+        # Feature Flags
+        - name: ENABLE_STRIPE
+          value: "true"
+        - name: ENABLE_PAYPAL
+          value: "false"
+        - name: ENABLE_REFUNDS
+          value: "true"
+        - name: ENABLE_RECURRING_PAYMENTS
+          value: "true"
+        - name: ENABLE_WEBHOOKS
+          value: "true"
+        
+        # Monitoring and Logging
+        - name: LOG_LEVEL
+          value: "info"
+        - name: LOG_FORMAT
+          value: "json"
+        - name: ENABLE_METRICS
+          value: "true"
+        - name: ENABLE_HEALTH_CHECK
+          value: "true"
+        
+        # Rate Limiting and Security
+        - name: ENABLE_RATE_LIMITING
+          value: "true"
+        - name: ENABLE_CIRCUIT_BREAKER
+          value: "true"
+        - name: ENABLE_CORS
+          value: "true"
+        
+        # Payment Processing Limits
+        - name: MAX_PAYMENT_AMOUNT
+          value: "10000.00"
+        - name: MIN_PAYMENT_AMOUNT
+          value: "0.50"
+        - name: DEFAULT_CURRENCY
+          value: "USD"
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        # Health Checks for Go Application
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8084
+            scheme: HTTP
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+          successThreshold: 1
+        
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8084
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8084
+            scheme: HTTP
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 12
+          successThreshold: 1
+        
+        # Security Context
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534  # nobody user
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+        
+        # Volume Mounts
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: tmp-volume
+          mountPath: /tmp
+      
+      # Volumes
+      volumes:
+      - name: config-volume
+        configMap:
+          name: payment-service-config
+      - name: logs-volume
+        emptyDir: {}
+      - name: tmp-volume
+        emptyDir: {}
+      
+      # Init Containers for Dependencies
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z postgres-service.data.svc.cluster.local 5432; do echo waiting for postgres; sleep 2; done;']
+      - name: wait-for-redis
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z redis-service.data.svc.cluster.local 6379; do echo waiting for redis; sleep 2; done;']
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command: ['sh', '-c', 'until nc -z kafka-service.data.svc.cluster.local 9092; do echo waiting for kafka; sleep 2; done;']
+      
+      # Security and Scheduling
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      
+      # Service Account (for RBAC if needed)
+      serviceAccountName: default
+      
+      # Restart Policy
+      restartPolicy: Always
+      
+      # DNS Policy
+      dnsPolicy: ClusterFirst
+      
+      # Termination Grace Period
+      terminationGracePeriodSeconds: 30
