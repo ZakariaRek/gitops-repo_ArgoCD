@@ -6,10 +6,11 @@ resources:
 - Service.yaml
 - ConfigMap.yaml
 
-commonLabels:
-  app: config-server
-  component: infrastructure
-  version: latest
+labels:
+- pairs:
+    app: config-server
+    component: infrastructure
+    version: latest
 
 images:
 - name: yahyazakaria123/ecommerce-app-config-serveur
