@@ -1,0 +1,79 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: config-server-dev
+  namespace: dev-infrastructure
+
+# Reference the base config-server configuration
+resources:
+- ../../../base/infrastructure/config-server
+
+# Override namespace for dev environment
+namespace: dev-infrastructure
+
+# Add environment-specific labels
+commonLabels:
+  environment: dev
+  tier: development
+
+# Use development image tag
+images:
+- name: yahyazakaria123/ecommerce-app-config-serveur
+  newTag: dev-latest
+
+# Reduce replicas for dev (save resources)
+replicas:
+- name: config-server
+  count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+- name: config-server-dev-config
+  literals:
+  - LOG_LEVEL=DEBUG
+  - SPRING_PROFILES_ACTIVE=dev,docker
+  - CONFIG_SERVER_GIT_BRANCH=develop
+  - EUREKA_INSTANCE_HOSTNAME=config-server-dev
+
+# Patch the deployment with dev-specific configurations
+patchesStrategicMerge:
+- |-
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: config-server
+  spec:
+    template:
+      spec:
+        containers:
+        - name: config-server
+          env:
+          - name: SPRING_PROFILES_ACTIVE
+            value: "dev,docker"
+          - name: LOG_LEVEL
+            value: "DEBUG"
+          - name: SPRING_CLOUD_CONFIG_SERVER_GIT_DEFAULT_LABEL
+            value: "develop"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+
+# Patch the service to use NodePort for easy access in dev
+patchesJson6902:
+- target:
+    group: ""
+    version: v1
+    kind: Service
+    name: config-server
+  patch: |-
+    - op: replace
+      path: /spec/type
+      value: NodePort
+    - op: add
+      path: /spec/ports/0/nodePort
+      value: 30888
