@@ -4,6 +4,10 @@ kind: Kustomization
 resources:
 - config-server
 - eureka-server
+- api-gateway
+- ingress-nginx
+- health-ingress
+# - default-http-backend
 
 labels:
 - pairs:
