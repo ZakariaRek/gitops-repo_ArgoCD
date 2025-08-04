@@ -91,20 +91,4 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 10
           failureThreshold: 18
-      initContainers:
-      # Wait for infrastructure services
-      - name: wait-for-postgres
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z postgres-service.data.svc.cluster.local 5432; do echo waiting for postgres; sleep 2; done;']
-      - name: wait-for-redis
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z redis-service.data.svc.cluster.local 6379; do echo waiting for redis; sleep 2; done;']
-      - name: wait-for-kafka
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z kafka-service.data.svc.cluster.local 9092; do echo waiting for kafka; sleep 2; done;']
-      - name: wait-for-eureka
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do echo waiting for eureka; sleep 2; done;']
-      - name: wait-for-config-server
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z config-server.infrastructure.svc.cluster.local 8888; do echo waiting for config server; sleep 2; done;']
+    
