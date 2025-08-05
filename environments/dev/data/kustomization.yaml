@@ -1,14 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
-resources:
-  - kafka-zookeeper
 #  - redis
-  - user-mongodb
-
+resources:
+- kafka-zookeeper
+- user-mongodb
+- postgresql
 labels:
-  - pairs:
-      environment: dev
-      managed-by: argocd
-
+- pairs:
+    environment: dev
+    managed-by: argocd
 namespace: data
