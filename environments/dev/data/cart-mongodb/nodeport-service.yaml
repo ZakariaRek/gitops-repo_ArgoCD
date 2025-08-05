@@ -1,0 +1,22 @@
+# environments/dev/data/cart-mongodb/nodeport-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-mongodb-nodeport
+  namespace: data
+  labels:
+    app: cart-mongodb
+    component: data
+    service: cart-service
+    tier: database-dev
+    environment: dev
+spec:
+  type: NodePort
+  selector:
+    app: cart-mongodb
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+      nodePort: 30717
+      protocol: TCP
