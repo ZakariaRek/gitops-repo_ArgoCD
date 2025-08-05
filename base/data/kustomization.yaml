@@ -10,7 +10,7 @@ resources:
   - zookeeper
   - kafka
   - redis
-  - user-mongodb
+#  - user-mongodb
 labels:
   - pairs:
       component: data
