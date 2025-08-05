@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-ui-config
+  namespace: data
+  labels:
+    app: kafka-ui
+    component: data
+data:
+  config.yml: |
+    kafka:
+      clusters:
+        - name: nexus-commerce-kafka
+          bootstrapServers: kafka-service:9092
+          zookeeper: zookeeper-service:2181
+          properties: {}
+          readOnly: false
+          metrics:
+            port: 9997
+            type: JMX
+    auth:
+      type: disabled
+    management:
+      health:
+        ldap:
+          enabled: false
+    spring:
+      security:
+        oauth2:
+          client:
+            registration: {}
