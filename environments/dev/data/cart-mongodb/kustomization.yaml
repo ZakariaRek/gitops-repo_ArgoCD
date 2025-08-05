@@ -1,0 +1,168 @@
+# ========================================
+# FIXED CART MONGODB DEVELOPMENT OVERLAY
+# ========================================
+
+# environments/dev/data/cart-mongodb/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: cart-mongodb-dev
+  namespace: data
+
+# Reference the base cart-mongodb configuration
+resources:
+  - ../../../../base/data/cart-mongodb
+
+# Use data namespace
+namespace: data
+
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+# Use development image tag
+images:
+  - name: mongo
+    newTag: "7.0"
+
+# Reduce replicas for dev (save resources)
+replicas:
+  - name: cart-mongodb
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: cart-mongodb-dev-config
+    literals:
+      - MONGO_LOG_LEVEL=debug
+      - MONGO_SLOW_OP_THRESHOLD=100
+      - ENVIRONMENT=development
+
+# Generate dev secrets - use 'merge' behavior since base secret exists
+secretGenerator:
+  - name: cart-mongodb-secret
+    behavior: merge
+    literals:
+      - username=Y2FydHNlcnZpY2VfZGV2  # cartservice_dev (base64)
+      - password=Y2FydHNlcnZpY2VfZGV2XzEyMw==  # cartservice_dev_123 (base64)
+
+# Use the new patches syntax for development-specific configurations
+patches:
+  # MongoDB development patches
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: cart-mongodb
+        namespace: data
+      spec:
+        template:
+          spec:
+            containers:
+              - name: mongodb
+                env:
+                  - name: MONGO_LOG_LEVEL
+                    value: "debug"
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "100m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+        volumeClaimTemplates:
+          - metadata:
+              name: mongodb-data
+            spec:
+              resources:
+                requests:
+                  storage: 5Gi  # Smaller storage for dev
+          - metadata:
+              name: mongodb-config
+            spec:
+              resources:
+                requests:
+                  storage: 500Mi  # Smaller config storage for dev
+    target:
+      kind: StatefulSet
+      name: cart-mongodb
+
+  # Create NodePort service for dev access (separate service)
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: cart-mongodb-nodeport
+        namespace: data
+        labels:
+          app: cart-mongodb
+          component: data
+          service: cart-service
+          tier: database-dev
+      spec:
+        type: NodePort
+        selector:
+          app: cart-mongodb
+        ports:
+          - name: mongodb
+            port: 27017
+            targetPort: 27017
+            nodePort: 30717
+            protocol: TCP
+    target:
+      kind: Service
+      name: cart-mongodb-headless
+
+  # Patch ConfigMap for dev-specific MongoDB configuration
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: cart-mongodb-config
+        namespace: data
+      data:
+        database-name: "cartdb_dev"
+        mongodb-url: "mongodb://cart-mongodb-headless.data.svc.cluster.local:27017/cartdb_dev"
+        
+        # MongoDB development configuration
+        mongod.conf: |
+          storage:
+            dbPath: /data/db
+            journal:
+              enabled: true
+            wiredTiger:
+              engineConfig:
+                cacheSizeGB: 0.25  # 256MB cache for dev
+          
+          systemLog:
+            destination: file
+            logAppend: true
+            path: /var/log/mongodb/mongod.log
+            logRotate: reopen
+            verbosity: 2  # More verbose logging for dev
+          
+          net:
+            port: 27017
+            bindIp: 0.0.0.0
+            maxIncomingConnections: 50  # Reduced for dev
+          
+          processManagement:
+            timeZoneInfo: /usr/share/zoneinfo
+          
+          operationProfiling:
+            slowOpThresholdMs: 100  # Capture slow ops for dev
+            mode: slowOp
+          
+          # No replication for single dev instance
+          # replication:
+          #   replSetName: "cart-replica-set"
+          
+          # Security settings (relaxed for dev)
+          security:
+            authorization: enabled
+    target:
+      kind: ConfigMap
+      name: cart-mongodb-config
