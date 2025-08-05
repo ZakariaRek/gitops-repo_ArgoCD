@@ -37,9 +37,9 @@ configMapGenerator:
       - REDIS_SAVE_ENABLED=true
       - REDIS_APPENDONLY=yes
 
-# Use the new patches syntax for development-specific configurations
+# Combined patches for development-specific configurations
 patches:
-  # Redis development patches for smaller resources
+  # Comprehensive Redis development patch combining base health checks with dev-specific settings
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -65,6 +65,10 @@ patches:
                     value: "256mb"
                   - name: REDIS_SAVE_ENABLED
                     value: "true"
+                  - name: REDIS_PORT
+                    value: "6379"
+                  - name: REDIS_DATABASES
+                    value: "16"
                 resources:
                   requests:
                     memory: "128Mi"
@@ -72,7 +76,7 @@ patches:
                   limits:
                     memory: "256Mi"
                     cpu: "100m"
-                # Enhanced health checks for dev
+                # Combined health checks (base + dev optimized)
                 livenessProbe:
                   tcpSocket:
                     port: 6379
