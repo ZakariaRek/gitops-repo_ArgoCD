@@ -6,25 +6,71 @@ metadata:
   namespace: data
 
 resources:
-- redis-deployment.yaml
-- redis-service.yaml
-- redis-configmap.yaml
-- redis-pvc.yaml
+  - Deployment.yaml
+  - Service.yaml
+  - ConfigMap.yaml
+  - Pvc.yaml
 
+# Use 'labels' instead of deprecated 'commonLabels'
 labels:
-- pairs:
-    app: redis-service
-    component: data
-    version: "7.2"
+  - pairs:
+      app: redis-service
+      component: data
+      tier: cache
 
 images:
-- name: redis
-  newTag: "7.2-alpine"
+  - name: redis
+    newTag: "7.2-alpine"
 
 namespace: data
 
+replicas:
+  - name: redis-service
+    count: 1
+
 configMapGenerator:
-- name: redis-env-config
-  literals:
-  - REDIS_PORT=6379
-  - REDIS_DATABASES=16
+  - name: redis-env-config
+    literals:
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=16
+      - REDIS_MAXMEMORY=512mb
+      - REDIS_MAXMEMORY_POLICY=allkeys-lru
+
+# Health check configuration
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis-service
+        namespace: data
+      spec:
+        template:
+          spec:
+            containers:
+              - name: redis
+                livenessProbe:
+                  tcpSocket:
+                    port: 6379
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 3
+                readinessProbe:
+                  exec:
+                    command:
+                      - redis-cli
+                      - ping
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+                startupProbe:
+                  tcpSocket:
+                    port: 6379
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  failureThreshold: 10
+    target:
+      kind: Deployment
+      name: redis-service

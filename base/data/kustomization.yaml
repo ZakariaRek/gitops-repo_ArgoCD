@@ -9,6 +9,7 @@ resources:
   - namespace.yaml
   - zookeeper
   - kafka
+  - redis
 labels:
   - pairs:
       component: data
