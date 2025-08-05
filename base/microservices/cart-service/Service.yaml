@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-service
+  namespace: microservices
+  labels:
+    app: cart-service
+    component: microservices
+    tier: backend
+spec:
+  selector:
+    app: cart-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082
+      protocol: TCP
+  type: ClusterIP

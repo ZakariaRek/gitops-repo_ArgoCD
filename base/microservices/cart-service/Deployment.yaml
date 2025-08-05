@@ -1,0 +1,186 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  namespace: microservices
+  labels:
+    app: cart-service
+    component: microservices
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cart-service
+  template:
+    metadata:
+      labels:
+        app: cart-service
+        component: microservices
+        tier: backend
+    spec:
+      containers:
+        - name: cart-service
+          image: yahyazakaria123/ecommerce-app-cart-service:latest
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            # Application Configuration
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,kafka"
+            - name: SPRING_APPLICATION_NAME
+              value: "cart-service"
+            - name: SERVER_PORT
+              value: "8082"
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              value: "/api/carts"
+
+            # Eureka Configuration
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: "cart-service"
+
+            # Config Server Configuration
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server.infrastructure.svc.cluster.local:8888"
+
+            # MongoDB Configuration (Cross-namespace)
+            - name: SPRING_DATA_MONGODB_HOST
+              value: "cart-mongodb-headless.data.svc.cluster.local"
+            - name: SPRING_DATA_MONGODB_PORT
+              value: "27017"
+            - name: SPRING_DATA_MONGODB_DATABASE
+              value: "cartdb"
+            - name: SPRING_DATA_MONGODB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: cart-service-secrets
+                  key: mongodb-username
+            - name: SPRING_DATA_MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cart-service-secrets
+                  key: mongodb-password
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@cart-mongodb-headless.data.svc.cluster.local:27017/cartdb"
+
+            # Redis Configuration (Cross-namespace)
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis-service.data.svc.cluster.local"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_DATABASE
+              value: "3"  # Use database 3 for cart service
+            - name: SPRING_DATA_REDIS_TIMEOUT
+              value: "2000ms"
+
+            # Kafka Configuration (Cross-namespace)
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+              value: "cart-service-group"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # Health Checks
+          livenessProbe:
+            httpGet:
+              path: /api/carts/actuator/health
+              port: 8082
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/carts/actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+
+          startupProbe:
+            httpGet:
+              path: /api/carts/actuator/health
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 20
+            timeoutSeconds: 5
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+            - name: logs-volume
+              mountPath: /app/logs
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: cart-service-config
+        - name: logs-volume
+          emptyDir: {}
+
+      # InitContainers for proper startup order
+      initContainers:
+        # Wait for MongoDB
+        - name: wait-for-mongodb
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Cart MongoDB..."
+              until nc -z cart-mongodb-headless.data.svc.cluster.local 27017; do 
+                echo "MongoDB not ready, waiting..."
+                sleep 3
+              done
+              echo "Cart MongoDB is ready!"
+
+        # Wait for Redis
+        - name: wait-for-redis
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Redis..."
+              until nc -z redis-service.data.svc.cluster.local 6379; do 
+                echo "Redis not ready, waiting..."
+                sleep 3
+              done
+              echo "Redis is ready!"
+
+        # Wait for Kafka
+        - name: wait-for-kafka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Kafka..."
+              until nc -z kafka-service.data.svc.cluster.local 9092; do 
+                echo "Kafka not ready, waiting..."
+                sleep 3
+              done
+              echo "Kafka is ready!"
+
+        # Wait for Eureka
+        - name: wait-for-eureka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Eureka..."
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
+                echo "Eureka not ready, waiting..."
+                sleep 3
+              done
+              echo "Eureka is ready!"
