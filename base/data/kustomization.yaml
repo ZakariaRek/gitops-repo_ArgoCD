@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: data-layer
+  namespace: data
+
+resources:
+  - namespace.yaml
+  - zookeeper
+  - kafka
+labels:
+  - pairs:
+      component: data
+      layer: data-layer
+      managed-by: argocd
+
+namespace: data
