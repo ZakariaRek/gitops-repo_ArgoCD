@@ -9,6 +9,7 @@ metadata:
 # Reference the base cart-mongodb configuration
 resources:
   - ../../../../base/data/cart-mongodb
+  - nodeport-service.yaml
 
 # Use data namespace
 namespace: data
@@ -52,7 +53,7 @@ patches:
       kind: Secret
       name: cart-mongodb-secret
 
-  # Only patch container resources, NOT volumeClaimTemplates
+  # ONLY patch the template spec (container resources), NOT the StatefulSet spec
   - patch: |-
       apiVersion: apps/v1
       kind: StatefulSet
@@ -70,6 +71,22 @@ patches:
                   limits:
                     memory: "512Mi"
                     cpu: "250m"
+                env:
+                  - name: MONGO_INITDB_ROOT_USERNAME
+                    valueFrom:
+                      secretKeyRef:
+                        name: cart-mongodb-secret
+                        key: username
+                  - name: MONGO_INITDB_ROOT_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: cart-mongodb-secret
+                        key: password
+                  - name: MONGO_INITDB_DATABASE
+                    valueFrom:
+                      configMapKeyRef:
+                        name: cart-mongodb-config
+                        key: database-name
     target:
       kind: StatefulSet
       name: cart-mongodb
