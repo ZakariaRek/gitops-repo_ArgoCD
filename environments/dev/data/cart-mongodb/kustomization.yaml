@@ -1,7 +1,3 @@
-# ========================================
-# FIXED CART MONGODB DEVELOPMENT OVERLAY
-# ========================================
-
 # environments/dev/data/cart-mongodb/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -13,6 +9,7 @@ metadata:
 # Reference the base cart-mongodb configuration
 resources:
   - ../../../../base/data/cart-mongodb
+#  - nodeport-service.yaml
 
 # Use data namespace
 namespace: data
@@ -41,23 +38,28 @@ configMapGenerator:
       - MONGO_SLOW_OP_THRESHOLD=100
       - ENVIRONMENT=development
 
-# FIXED: Remove behavior: merge since it's causing issues
-# Generate dev secrets - replace the base secret entirely
-secretGenerator:
-  - name: cart-mongodb-secret
-    literals:
-      - username=Y2FydHNlcnZpY2VfZGV2  # cartservice_dev (base64)
-      - password=Y2FydHNlcnZpY2VfZGV2XzEyMw==  # cartservice_dev_123 (base64)
-
-# Use the new patches syntax for development-specific configurations
+# Use patches to modify the existing secret instead of generating a new one
 patches:
-  # MongoDB development patches
+  # Patch the secret with dev credentials
+  - patch: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cart-mongodb-secret
+        namespace: data
+      data:
+        username: Y2FydHNlcnZpY2VfZGV2  # cartservice_dev (base64)
+        password: Y2FydHNlcnZpY2VfZGV2XzEyMw==  # cartservice_dev_123 (base64)
+    target:
+      kind: Secret
+      name: cart-mongodb-secret
+
+  # Reduce resources for dev
   - patch: |-
       apiVersion: apps/v1
       kind: StatefulSet
       metadata:
         name: cart-mongodb
-        namespace: data
       spec:
         template:
           spec:
@@ -79,47 +81,23 @@ patches:
             spec:
               resources:
                 requests:
-                  storage: 5Gi  # Smaller storage for dev
+                  storage: 5Gi
           - metadata:
               name: mongodb-config
             spec:
               resources:
                 requests:
-                  storage: 500Mi  # Smaller config storage for dev
+                  storage: 500Mi
     target:
       kind: StatefulSet
       name: cart-mongodb
 
-  # FIXED: Create a separate NodePort service instead of patching the headless service
-  - patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: cart-mongodb-nodeport
-        namespace: data
-        labels:
-          app: cart-mongodb
-          component: data
-          service: cart-service
-          tier: database-dev
-      spec:
-        type: NodePort
-        selector:
-          app: cart-mongodb
-        ports:
-          - name: mongodb
-            port: 27017
-            targetPort: 27017
-            nodePort: 30717
-            protocol: TCP
-
-  # Patch ConfigMap for dev-specific MongoDB configuration
+  # Update ConfigMap for dev
   - patch: |-
       apiVersion: v1
       kind: ConfigMap
       metadata:
         name: cart-mongodb-config
-        namespace: data
       data:
         database-name: "cartdb_dev"
         mongodb-url: "mongodb://cart-mongodb-headless.data.svc.cluster.local:27017/cartdb_dev"
