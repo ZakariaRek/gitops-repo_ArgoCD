@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: zookeeper
+  namespace: data
+
+resources:
+  - Deployment.yaml
+  - Service.yaml
+  - ConfigMap.yaml
+  - PersistentVolumeClaim.yaml
+
+labels:
+  - pairs:
+      app: zookeeper
+      component: data
+      version: "7.4.0"
+
+images:
+  - name: confluentinc/cp-zookeeper
+    newTag: 7.4.0
+
+namespace: data
+
+replicas:
+  - name: zookeeper
+    count: 1
+
+configMapGenerator:
+  - name: zookeeper-env-config
+    literals:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+      - ZOOKEEPER_LOG4J_ROOT_LOGLEVEL=INFO
