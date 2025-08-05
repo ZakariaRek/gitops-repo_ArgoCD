@@ -1,0 +1,192 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: redis-service-dev
+  namespace: data
+
+# Reference the base Redis configuration
+resources:
+  - ../../../../base/data/redis
+
+# Use data namespace
+namespace: data
+
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+# Use development image tag (keeping stable version for Redis)
+images:
+  - name: redis
+    newTag: "7.2-alpine"
+
+# Single replica for dev (save resources)
+replicas:
+  - name: redis-service
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: redis-dev-config
+    literals:
+      - REDIS_LOG_LEVEL=debug
+      - REDIS_MAXMEMORY=256mb
+      - REDIS_SAVE_ENABLED=true
+      - REDIS_APPENDONLY=yes
+
+# Use the new patches syntax for development-specific configurations
+patches:
+  # Redis development patches for smaller resources
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis-service
+        namespace: data
+      spec:
+        template:
+          spec:
+            containers:
+              - name: redis
+                command:
+                  - redis-server
+                  - /usr/local/etc/redis/redis.conf
+                  - --loglevel
+                  - debug
+                  - --maxmemory
+                  - 256mb
+                env:
+                  - name: REDIS_LOG_LEVEL
+                    value: "debug"
+                  - name: REDIS_MAXMEMORY
+                    value: "256mb"
+                  - name: REDIS_SAVE_ENABLED
+                    value: "true"
+                resources:
+                  requests:
+                    memory: "128Mi"
+                    cpu: "50m"
+                  limits:
+                    memory: "256Mi"
+                    cpu: "100m"
+                # Enhanced health checks for dev
+                livenessProbe:
+                  tcpSocket:
+                    port: 6379
+                  initialDelaySeconds: 15
+                  periodSeconds: 10
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+                readinessProbe:
+                  exec:
+                    command:
+                      - redis-cli
+                      - ping
+                  initialDelaySeconds: 5
+                  periodSeconds: 3
+                  timeoutSeconds: 2
+                  failureThreshold: 3
+                startupProbe:
+                  tcpSocket:
+                    port: 6379
+                  initialDelaySeconds: 5
+                  periodSeconds: 2
+                  failureThreshold: 15
+    target:
+      kind: Deployment
+      name: redis-service
+
+  # Patch PVC for smaller storage in dev
+  - patch: |-
+      apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: redis-pvc
+        namespace: data
+      spec:
+        resources:
+          requests:
+            storage: 1Gi  # Smaller storage for dev
+    target:
+      kind: PersistentVolumeClaim
+      name: redis-pvc
+
+  # Patch service to use NodePort for dev access
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: redis-service
+        namespace: data
+      spec:
+        type: NodePort
+        ports:
+          - name: redis
+            port: 6379
+            targetPort: 6379
+            nodePort: 30379
+            protocol: TCP
+    target:
+      kind: Service
+      name: redis-service
+
+  # Patch ConfigMap for dev-specific Redis configuration
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: redis-config
+        namespace: data
+      data:
+        redis.conf: |
+          # Redis development configuration
+          bind 0.0.0.0
+          port 6379
+          
+          # Memory management for dev
+          maxmemory 256mb
+          maxmemory-policy allkeys-lru
+          
+          # Persistence configuration (more frequent saves for dev)
+          appendonly yes
+          appendfsync everysec
+          save 60 1000
+          save 30 100
+          save 15 10
+          
+          # Performance tuning for dev
+          tcp-keepalive 60
+          timeout 300
+          
+          # Security (relaxed for dev)
+          protected-mode no
+          
+          # Enhanced logging for development
+          loglevel debug
+          
+          # Database configuration
+          databases 16
+          
+          # Development-specific settings
+          hash-max-ziplist-entries 256
+          hash-max-ziplist-value 32
+          list-max-ziplist-size -1
+          set-max-intset-entries 256
+          zset-max-ziplist-entries 64
+          zset-max-ziplist-value 32
+          
+          # Client configuration for dev
+          tcp-backlog 128
+          
+          # Slow log configuration (more verbose for dev)
+          slowlog-log-slower-than 1000
+          slowlog-max-len 256
+          
+          # Enable keyspace notifications for debugging
+          notify-keyspace-events Ex
+    target:
+      kind: ConfigMap
+      name: redis-config
