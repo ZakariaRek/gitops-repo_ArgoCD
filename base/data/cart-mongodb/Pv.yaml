@@ -1,21 +1,21 @@
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: order-postgres-pv
-  labels:
-    app: order-postgres
-    component: data
-    service: order-service
-    tier: database
-spec:
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: standard
-  volumeMode: Filesystem
-  # For local development (adjust based on your cluster setup)
-  hostPath:
-    path: /data/order-postgres
-    type: DirectoryOrCreate
+#apiVersion: v1
+#kind: PersistentVolume
+#metadata:
+#  name: order-postgres-pv
+#  labels:
+#    app: order-postgres
+#    component: data
+#    service: order-service
+#    tier: database
+#spec:
+#  capacity:
+#    storage: 10Gi
+#  accessModes:
+#    - ReadWriteOnce
+#  persistentVolumeReclaimPolicy: Retain
+#  storageClassName: standard
+#  volumeMode: Filesystem
+#  # For local development (adjust based on your cluster setup)
+#  hostPath:
+#    path: /data/order-postgres
+#    type: DirectoryOrCreate
