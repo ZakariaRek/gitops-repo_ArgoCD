@@ -6,30 +6,35 @@ metadata:
   namespace: ingress-nginx
 
 resources:
-- ServiceAccount.yaml
-- Deployment.yaml
-- Service.yaml
+  - ServiceAccount.yaml
+  - ClusterRole.yaml      # Uncomment this
+  - ClusterRoleBinding.yaml  # Uncomment this
+  - Role.yaml             # Uncomment this
+  - RoleBinding.yaml      # Uncomment this
+  - ConfigMap.yaml        # Uncomment this
+  - Deployment.yaml
+  - Service.yaml
 
 # Use new labels syntax instead of deprecated commonLabels
 labels:
-- pairs:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
-    app.kubernetes.io/version: v1.8.1
+  - pairs:
+      app.kubernetes.io/name: ingress-nginx
+      app.kubernetes.io/part-of: ingress-nginx
+      app.kubernetes.io/version: v1.8.1
 
 images:
-- name: registry.k8s.io/ingress-nginx/controller
-  newTag: v1.8.1
+  - name: registry.k8s.io/ingress-nginx/controller
+    newTag: v1.8.1
 
 namespace: ingress-nginx
 
 replicas:
-- name: simple-ingress-controller
-  count: 2
+  - name: simple-ingress-controller
+    count: 2
 
 configMapGenerator:
-- name: nginx-custom-config
-  literals:
-  - custom-http-errors=404,503
-  - enable-modsecurity=false
-  - enable-owasp-modsecurity-crs=false
+  - name: nginx-custom-config
+    literals:
+      - custom-http-errors=404,503
+      - enable-modsecurity=false
+      - enable-owasp-modsecurity-crs=false
