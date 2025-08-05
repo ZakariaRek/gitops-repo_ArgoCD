@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - kafka-zookeeper
 #  - redis
+  - user-mongodb
 
 labels:
   - pairs:

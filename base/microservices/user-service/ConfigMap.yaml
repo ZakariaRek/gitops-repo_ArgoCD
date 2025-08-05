@@ -7,6 +7,35 @@ metadata:
     app: payment-service
     component: microservices
 data:
+  application.yml: |
+    spring:
+      application:
+        name: user-service
+      data:
+        mongodb:
+          uri: mongodb://user-mongodb-service:27017/userdb
+          database: userdb
+    
+    server:
+      port: 8080
+    
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://eureka-server:8761/eureka/
+    
+    management:
+      endpoints:
+        web:  
+          exposure:
+            include: health,info,metrics
+      endpoint:
+        health:
+          show-details: always
+
+    # MongoDB connection string
+    mongodb-uri: "mongodb://user-mongodb-service:27017/userdb"
+    database-name: "userdb"
   config.yaml: |
     # Payment Service Configuration
     server:
