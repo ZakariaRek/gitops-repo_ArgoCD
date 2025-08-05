@@ -52,7 +52,7 @@ patches:
       kind: Secret
       name: cart-mongodb-secret
 
-  # Reduce resources for dev environment
+  # Only patch container resources, NOT volumeClaimTemplates
   - patch: |-
       apiVersion: apps/v1
       kind: StatefulSet
@@ -70,23 +70,6 @@ patches:
                   limits:
                     memory: "512Mi"
                     cpu: "250m"
-        volumeClaimTemplates:
-          - metadata:
-              name: mongodb-data
-            spec:
-              accessModes: ["ReadWriteOnce"]  # Required field
-              storageClassName: standard
-              resources:
-                requests:
-                  storage: 5Gi
-          - metadata:
-              name: mongodb-config
-            spec:
-              accessModes: ["ReadWriteOnce"]  # Required field
-              storageClassName: standard
-              resources:
-                requests:
-                  storage: 500Mi
     target:
       kind: StatefulSet
       name: cart-mongodb
