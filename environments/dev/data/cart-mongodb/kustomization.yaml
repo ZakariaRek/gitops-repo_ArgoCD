@@ -41,10 +41,10 @@ configMapGenerator:
       - MONGO_SLOW_OP_THRESHOLD=100
       - ENVIRONMENT=development
 
-# Generate dev secrets - use 'merge' behavior since base secret exists
+# FIXED: Remove behavior: merge since it's causing issues
+# Generate dev secrets - replace the base secret entirely
 secretGenerator:
   - name: cart-mongodb-secret
-    behavior: merge
     literals:
       - username=Y2FydHNlcnZpY2VfZGV2  # cartservice_dev (base64)
       - password=Y2FydHNlcnZpY2VfZGV2XzEyMw==  # cartservice_dev_123 (base64)
@@ -90,7 +90,7 @@ patches:
       kind: StatefulSet
       name: cart-mongodb
 
-  # Create NodePort service for dev access (separate service)
+  # FIXED: Create a separate NodePort service instead of patching the headless service
   - patch: |-
       apiVersion: v1
       kind: Service
@@ -112,9 +112,6 @@ patches:
             targetPort: 27017
             nodePort: 30717
             protocol: TCP
-    target:
-      kind: Service
-      name: cart-mongodb-headless
 
   # Patch ConfigMap for dev-specific MongoDB configuration
   - patch: |-
