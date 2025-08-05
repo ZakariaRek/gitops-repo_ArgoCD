@@ -1,38 +1,38 @@
-# apiVersion: v1
-# kind: ConfigMap
-# metadata:
-#   name: nginx-configuration
-#   namespace: ingress-nginx
-#   labels:
-#     app.kubernetes.io/name: ingress-nginx
-#     app.kubernetes.io/part-of: ingress-nginx
-# data:
-#   # Enable CORS
-#   enable-cors: "true"
-#   cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE, PATCH"
-#   cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
-#
-#   # SSL Configuration
-#   ssl-protocols: "TLSv1.2 TLSv1.3"
-#   ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
-#
-#   # Performance tuning
-#   worker-processes: "auto"
-#   worker-connections: "1024"
-#   max-worker-open-files: "2048"
-#
-#   # Logging
-#   log-format-upstream: '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time [$proxy_upstream_name] [$proxy_alternative_upstream_name] $upstream_addr $upstream_response_length $upstream_response_time $upstream_status $req_id'
-#
-#   # Client settings
-#   client-max-body-size: "50m"
-#   client-body-buffer-size: "1m"
-#
-#   # Proxy settings
-#   proxy-connect-timeout: "60"
-#   proxy-send-timeout: "60"
-#   proxy-read-timeout: "60"
-#   proxy-body-size: "50m"
-#
-#   # Rate limiting
-#   rate-limit-rpm: "100"
+ apiVersion: v1
+ kind: ConfigMap
+ metadata:
+   name: nginx-configuration
+   namespace: ingress-nginx
+   labels:
+     app.kubernetes.io/name: ingress-nginx
+     app.kubernetes.io/part-of: ingress-nginx
+ data:
+   # Enable CORS
+   enable-cors: "true"
+   cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE, PATCH"
+   cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+
+   # SSL Configuration
+   ssl-protocols: "TLSv1.2 TLSv1.3"
+   ssl-ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+
+   # Performance tuning
+   worker-processes: "auto"
+   worker-connections: "1024"
+   max-worker-open-files: "2048"
+
+   # Logging
+   log-format-upstream: '$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_length $request_time [$proxy_upstream_name] [$proxy_alternative_upstream_name] $upstream_addr $upstream_response_length $upstream_response_time $upstream_status $req_id'
+
+   # Client settings
+   client-max-body-size: "50m"
+   client-body-buffer-size: "1m"
+
+   # Proxy settings
+   proxy-connect-timeout: "60"
+   proxy-send-timeout: "60"
+   proxy-read-timeout: "60"
+   proxy-body-size: "50m"
+
+   # Rate limiting
+   rate-limit-rpm: "100"
