@@ -18,92 +18,189 @@ spec:
         component: infrastructure
     spec:
       containers:
-      - name: api-gateway
-        image: yahyazakaria123/ecommerce-app-api-gateway-service:latest
-        ports:
-        - containerPort: 8099
-          name: http
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "docker,kafka"
-        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-          value: "http://eureka-server:8761/eureka"
-        - name: SPRING_CLOUD_CONFIG_URI
-          value: "http://config-server:8888"
-        - name: SPRING_APPLICATION_NAME
-          value: "gateway-service"
-        - name: SERVER_PORT
-          value: "8099"
-        # Reference existing data layer services
-        - name: SPRING_DATA_REDIS_HOST
-          value: "redis-service.data.svc.cluster.local"
-        - name: SPRING_DATA_REDIS_PORT
-          value: "6379"
-        - name: SPRING_DATA_REDIS_DATABASE
-          value: "0"
-        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-          value: "kafka-service.data.svc.cluster.local:9092"
-        # Microservice URLs
-        - name: SERVICES_USER_SERVICE_URL
-          value: "http://user-service.microservices.svc.cluster.local:8080"
-        - name: SERVICES_PRODUCT_SERVICE_URL
-          value: "http://product-service.microservices.svc.cluster.local:8081"
-        - name: SERVICES_CART_SERVICE_URL
-          value: "http://cart-service.microservices.svc.cluster.local:8082"
-        - name: SERVICES_ORDER_SERVICE_URL
-          value: "http://order-service.microservices.svc.cluster.local:8083"
-        - name: SERVICES_PAYMENT_SERVICE_URL
-          value: "http://payment-service.microservices.svc.cluster.local:8084"
-        - name: SERVICES_NOTIFICATION_SERVICE_URL
-          value: "http://notification-service.microservices.svc.cluster.local:8086"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8099
-          initialDelaySeconds: 90
-          periodSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
-            port: 8099
-          initialDelaySeconds: 60
-          periodSeconds: 10
-        startupProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8099
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          failureThreshold: 18
-        volumeMounts:
-        - name: config-volume
-          mountPath: /app/config
-        - name: logs-volume
-          mountPath: /app/logs
+        - name: api-gateway
+          image: yahyazakaria123/ecommerce-app-api-gateway-service:latest
+          ports:
+            - containerPort: 8099
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,kafka"
+
+            # Eureka Configuration
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: "api-gateway"
+
+            # Config Server Configuration
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server.infrastructure.svc.cluster.local:8888"
+
+            # Application Configuration
+            - name: SPRING_APPLICATION_NAME
+              value: "gateway-service"
+            - name: SERVER_PORT
+              value: "8099"
+
+            # Redis Configuration (Cross-namespace)
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis-service.data.svc.cluster.local"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_DATABASE
+              value: "0"
+
+            # Kafka Configuration (Cross-namespace)
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+
+            # Microservice URLs (Cross-namespace)
+            - name: SERVICES_USER_SERVICE_URL
+              value: "http://user-service.microservices.svc.cluster.local:8080"
+            - name: SERVICES_PRODUCT_SERVICE_URL
+              value: "http://product-service.microservices.svc.cluster.local:8081"
+            - name: SERVICES_CART_SERVICE_URL
+              value: "http://cart-service.microservices.svc.cluster.local:8082"
+            - name: SERVICES_ORDER_SERVICE_URL
+              value: "http://order-service.microservices.svc.cluster.local:8083"
+            - name: SERVICES_PAYMENT_SERVICE_URL
+              value: "http://payment-service.microservices.svc.cluster.local:8084"
+            - name: SERVICES_NOTIFICATION_SERVICE_URL
+              value: "http://notification-service.microservices.svc.cluster.local:8086"
+
+            # CORS Configuration
+            - name: CORS_CONFIGURATION_ALLOWED_ORIGINS
+              value: "http://localhost:3000,http://localhost:8080"
+            - name: CORS_CONFIGURATION_ALLOWED_METHODS
+              value: "GET,POST,PUT,DELETE,OPTIONS,PATCH"
+            - name: CORS_CONFIGURATION_ALLOWED_HEADERS
+              value: "*"
+            - name: CORS_CONFIGURATION_ALLOW_CREDENTIALS
+              value: "true"
+            - name: CORS_CONFIGURATION_MAX_AGE
+              value: "3600"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # Enhanced Health Checks
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8099
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8099
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8099
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 20
+            timeoutSeconds: 5
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+            - name: logs-volume
+              mountPath: /app/logs
+
       volumes:
-      - name: config-volume
-        configMap:
-          name: api-gateway-config
-      - name: logs-volume
-        emptyDir: {}
+        - name: config-volume
+          configMap:
+            name: api-gateway-config
+        - name: logs-volume
+          emptyDir: {}
+
+      # Enhanced InitContainers for proper startup order
       initContainers:
-      # Wait for data layer services to be ready
-      - name: wait-for-redis
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z redis-service.data.svc.cluster.local 6379; do echo waiting for redis; sleep 2; done;']
-      - name: wait-for-kafka
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z kafka-service.data.svc.cluster.local 9092; do echo waiting for kafka; sleep 2; done;']
-      - name: wait-for-eureka
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z eureka-server 8761; do echo waiting for eureka; sleep 2; done;']
-      - name: wait-for-config-server
-        image: busybox:1.35
-        command: ['sh', '-c', 'until nc -z config-server 8888; do echo waiting for config server; sleep 2; done;']
+        # Wait for Redis (cross-namespace)
+        - name: wait-for-redis
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Redis service..."
+              until nc -z redis-service.data.svc.cluster.local 6379; do 
+                echo "Redis not ready, waiting..."
+                sleep 3
+              done
+              echo "Redis is ready!"
+
+        # Wait for Kafka (cross-namespace)
+        - name: wait-for-kafka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Kafka service..."
+              until nc -z kafka-service.data.svc.cluster.local 9092; do 
+                echo "Kafka not ready, waiting..."
+                sleep 3
+              done
+              echo "Kafka is ready!"
+
+        # Wait for Eureka Server (same namespace)
+        - name: wait-for-eureka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Eureka server..."
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
+                echo "Eureka not ready, waiting..."
+                sleep 3
+              done
+              echo "Eureka is ready!"
+
+        # Wait for Config Server (same namespace)
+        - name: wait-for-config-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Config server..."
+              until nc -z config-server.infrastructure.svc.cluster.local 8888; do 
+                echo "Config server not ready, waiting..."
+                sleep 3
+              done
+              echo "Config server is ready!"
+
+        # Service connectivity test
+        - name: connectivity-test
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "=== API Gateway Connectivity Test ==="
+              echo "Testing Redis connection..."
+              nc -z redis-service.data.svc.cluster.local 6379 && echo "✅ Redis: Connected" || echo "❌ Redis: Failed"
+              
+              echo "Testing Eureka connection..."
+              nc -z eureka-server.infrastructure.svc.cluster.local 8761 && echo "✅ Eureka: Connected" || echo "❌ Eureka: Failed"
+              
+              echo "Testing Config Server connection..."
+              nc -z config-server.infrastructure.svc.cluster.local 8888 && echo "✅ Config Server: Connected" || echo "❌ Config Server: Failed"
+              
+              echo "Testing Kafka connection..."
+              nc -z kafka-service.data.svc.cluster.local 9092 && echo "✅ Kafka: Connected" || echo "❌ Kafka: Failed"
+              
+              echo "=== Connectivity Test Complete ==="
