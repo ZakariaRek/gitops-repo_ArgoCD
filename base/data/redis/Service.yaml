@@ -6,6 +6,7 @@ metadata:
   labels:
     app: redis-service
     component: data
+    tier: cache
 spec:
   selector:
     app: redis-service

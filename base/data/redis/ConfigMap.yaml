@@ -6,9 +6,10 @@ metadata:
   labels:
     app: redis-service
     component: data
+    tier: cache
 data:
   redis.conf: |
-    # Redis configuration for API Gateway
+    # Redis configuration for API Gateway and microservices
     bind 0.0.0.0
     port 6379
     
@@ -16,19 +17,38 @@ data:
     maxmemory 512mb
     maxmemory-policy allkeys-lru
     
-    # Persistence
+    # Persistence configuration
     appendonly yes
     appendfsync everysec
+    save 900 1
+    save 300 10
+    save 60 10000
     
     # Performance tuning
     tcp-keepalive 300
     timeout 0
     
-    # Security (basic)
+    # Security (basic configuration)
     protected-mode no
     
     # Logging
     loglevel notice
     
-    # Rate limiting specific settings
+    # Database configuration
     databases 16
+    
+    # Rate limiting and caching specific settings
+    hash-max-ziplist-entries 512
+    hash-max-ziplist-value 64
+    list-max-ziplist-size -2
+    list-compress-depth 0
+    set-max-intset-entries 512
+    zset-max-ziplist-entries 128
+    zset-max-ziplist-value 64
+    
+    # Client configuration
+    tcp-backlog 511
+    
+    # Slow log configuration
+    slowlog-log-slower-than 10000
+    slowlog-max-len 128

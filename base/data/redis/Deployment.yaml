@@ -6,6 +6,7 @@ metadata:
   labels:
     app: redis-service
     component: data
+    tier: cache
 spec:
   replicas: 1
   selector:
@@ -16,6 +17,7 @@ spec:
       labels:
         app: redis-service
         component: data
+        tier: cache
     spec:
       containers:
         - name: redis
@@ -25,12 +27,7 @@ spec:
               name: redis-port
           command:
             - redis-server
-            - "--appendonly"
-            - "yes"
-            - "--maxmemory"
-            - "512mb"
-            - "--maxmemory-policy"
-            - "allkeys-lru"
+            - /usr/local/etc/redis/redis.conf
           resources:
             requests:
               memory: "256Mi"
@@ -38,23 +35,17 @@ spec:
             limits:
               memory: "512Mi"
               cpu: "200m"
-          livenessProbe:
-            tcpSocket:
-              port: 6379
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            exec:
-              command:
-                - redis-cli
-                - ping
-            initialDelaySeconds: 5
-            periodSeconds: 5
           volumeMounts:
             - name: redis-data
               mountPath: /data
             - name: redis-config
               mountPath: /usr/local/etc/redis
+              readOnly: true
+          env:
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_DATABASES
+              value: "16"
       volumes:
         - name: redis-data
           persistentVolumeClaim:
