@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-mongodb
+  labels:
+    app: user-mongodb
+    component: database
+    service: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-mongodb
+  template:
+    metadata:
+      labels:
+        app: user-mongodb
+        component: database
+        service: user-service
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7.0
+          ports:
+            - containerPort: 27017
+              name: mongodb
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: user-mongodb-secret
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-mongodb-secret
+                  key: password
+            - name: MONGO_INITDB_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: user-mongodb-config
+                  key: database-name
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+            - name: mongodb-config
+              mountPath: /data/configdb
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - mongosh
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: mongodb-data
+          persistentVolumeClaim:
+            claimName: user-mongodb-pvc
+        - name: mongodb-config
+          persistentVolumeClaim:
+            claimName: user-mongodb-config-pvc
