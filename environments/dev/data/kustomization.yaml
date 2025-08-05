@@ -5,6 +5,7 @@ resources:
 - kafka-zookeeper
 - user-mongodb
 - postgresql
+- cart-mongodb
 labels:
 - pairs:
     environment: dev

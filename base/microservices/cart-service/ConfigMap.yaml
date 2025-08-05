@@ -1,56 +1,61 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: user-service-config
+  name: cart-service-config
   namespace: microservices
   labels:
-    app: user-service
+    app: cart-service
     component: microservices
 data:
   application.yml: |
     server:
-      port: 8080
+      port: 8082
+      servlet:
+        context-path: /api/carts
       error:
-        include-stacktrace: on_param
+        include-stacktrace: always
         include-message: always
+        include-binding-errors: always
+    
+    debug: true
     
     spring:
-      application:
-        name: user-service
       profiles:
         active: docker,kafka
       config:
         import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+      application:
+        name: cart-service
       
-      # Database Configuration
-      datasource:
-        url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/userdb}
-        username: ${SPRING_DATASOURCE_USERNAME:userservice}
-        password: ${SPRING_DATASOURCE_PASSWORD:userservice123}
-        driver-class-name: org.postgresql.Driver
-      
-      jpa:
-        hibernate:
-          ddl-auto: update
-        show-sql: false
-        properties:
-          hibernate:
-            dialect: org.hibernate.dialect.PostgreSQLDialect
-            format_sql: true
-      
-      # Redis Configuration
+      # MongoDB Configuration
       data:
+        mongodb:
+          host: ${SPRING_DATA_MONGODB_HOST:cart-mongodb-headless.data.svc.cluster.local}
+          port: ${SPRING_DATA_MONGODB_PORT:27017}
+          database: ${SPRING_DATA_MONGODB_DATABASE:cartdb}
+          username: ${SPRING_DATA_MONGODB_USERNAME:cartservice}
+          password: ${SPRING_DATA_MONGODB_PASSWORD:cartservice123}
+          uri: ${SPRING_DATA_MONGODB_URI:mongodb://cartservice:cartservice123@cart-mongodb-headless.data.svc.cluster.local:27017/cartdb}
+        
+        # Redis Configuration
         redis:
           host: ${SPRING_DATA_REDIS_HOST:redis-service.data.svc.cluster.local}
           port: ${SPRING_DATA_REDIS_PORT:6379}
-          timeout: 2000ms
-          database: ${SPRING_DATA_REDIS_DATABASE:1}
+          database: ${SPRING_DATA_REDIS_DATABASE:3}
+          timeout: ${SPRING_DATA_REDIS_TIMEOUT:2000ms}
           lettuce:
             pool:
               max-active: 8
               max-idle: 8
               min-idle: 0
               max-wait: -1ms
+        
+        # Cache Configuration
+        cache:
+          type: redis
+          redis:
+            time-to-live: 600000
+            cache-null-values: false
       
       # Kafka Configuration
       kafka:
@@ -58,20 +63,30 @@ data:
         producer:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-        consumer:
-          group-id: user-service-group
-          auto-offset-reset: earliest
-          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
           properties:
+            spring.json.add.type.headers: false
+            acks: all
+            retries: 3
+            enable.idempotence: true
+        consumer:
+          group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:cart-service-group}
+          auto-offset-reset: earliest
+          enable-auto-commit: false
+          key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+          properties:
+            spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+            spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
             spring.json.trusted.packages: "*"
+            spring.json.use.type.headers: false
+            spring.json.value.default.type: java.lang.Object
     
     # Eureka Configuration
     eureka:
       instance:
         preferIpAddress: true
         instanceId: ${spring.application.name}:${server.port}
-        hostname: user-service
+        hostname: cart-service
         metadataMap:
           instanceId: ${spring.application.name}:${server.port}
       client:
@@ -84,19 +99,12 @@ data:
         serviceUrl:
           defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
     
-    # JWT Configuration
-    app:
-      jwtSecret: ${JWT_SECRET:defaultSecretKey}
-      jwtExpirationMs: ${JWT_EXPIRATION:86400000}
-    
     # Management and Monitoring
     management:
       health:
-        circuitbreakers:
+        mongo:
           enabled: true
         redis:
-          enabled: true
-        db:
           enabled: true
       endpoint:
         health:
@@ -120,23 +128,15 @@ data:
         tags:
           application: ${spring.application.name}
     
-    # Logging Configuration
-    logging:
-      level:
-        com.nexuscommerce.userservice: INFO
-        org.springframework.security: DEBUG
-        org.springframework.web: INFO
-        org.hibernate.SQL: WARN
-        org.hibernate.type.descriptor.sql.BasicBinder: WARN
-      pattern:
-        console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    # Redis configuration
+    redis:
+      maximumActiveConnectionCount: 128
     
-    # SpringDoc Configuration
-    springdoc:
-      api-docs:
-        enabled: true
-        path: /v3/api-docs
-      swagger-ui:
-        enabled: true
-        path: /swagger-ui.html
+    # Cart Service Specific Configuration
+    cart:
+      session:
+        timeout: 1800 # 30 minutes
+      cache:
+        ttl: 600 # 10 minutes
+      cleanup:
+        schedule: "0 0 */6 * * *" # Every 6 hours

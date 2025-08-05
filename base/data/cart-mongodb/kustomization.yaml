@@ -2,31 +2,29 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 metadata:
-  name: order-postgres
+  name: cart-mongodb
   namespace: data
 
 resources:
-    - Pv.yaml
-    - Pvc.yaml
-    - Configmap.yaml
-    - Deployment.yaml
-    - Secret.yaml
-    - Service.yaml
+  - StatefulSet.yaml
+  - Service.yaml
+  - ConfigMap.yaml
+  - Secret.yaml
+
 labels:
   - pairs:
-      app: order-postgres
+      app: cart-mongodb
       component: data
-      service: order-service
+      service: cart-service
       tier: database
-      version: "15.4"
+      version: "7.0"
 
 images:
-  - name: postgres
-    newTag: 15.4-alpine
+  - name: mongo
+    newTag: "7.0"
 
 namespace: data
 
 replicas:
-  - name: order-postgres
-    count: 1
-
+  - name: cart-mongodb
+    count: 2

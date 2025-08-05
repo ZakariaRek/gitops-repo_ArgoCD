@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cart-service-ingress
+  namespace: microservices
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE, PATCH"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Session management
+    nginx.ingress.kubernetes.io/affinity: "cookie"
+    nginx.ingress.kubernetes.io/affinity-mode: "persistent"
+    nginx.ingress.kubernetes.io/session-cookie-name: "cart-session"
+    nginx.ingress.kubernetes.io/session-cookie-expires: "3600"
+    nginx.ingress.kubernetes.io/session-cookie-max-age: "3600"
+    nginx.ingress.kubernetes.io/session-cookie-path: "/api/carts"
+spec:
+  ingressClassName: nginx
+  rules:
+    # Main cart service API
+    - host: cart.nexus-commerce.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-service
+                port:
+                  number: 8082
+
+    # Cart API endpoints
+    - host: cart-api.nexus-commerce.local
+      http:
+        paths:
+          - path: /api/carts
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-service
+                port:
+                  number: 8082
+
+    # Cart management endpoints
+    - host: cart-mgmt.nexus-commerce.local
+      http:
+        paths:
+          - path: /api/carts/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: cart-service
+                port:
+                  number: 8082

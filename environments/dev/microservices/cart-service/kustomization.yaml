@@ -1,0 +1,102 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: cart-service-dev
+  namespace: microservices
+
+# Reference the base cart-service configuration
+resources:
+  - ../../../../base/microservices/cart-service
+  - cart-service-ingress.yaml
+
+# Use microservices namespace
+namespace: microservices
+
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+# Use development image tag
+images:
+  - name: yahyazakaria123/ecommerce-app-cart-service
+    newTag: latest  # You can change to dev-latest when available
+
+# Reduce replicas for dev (save resources)
+replicas:
+  - name: cart-service
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: cart-service-dev-config
+    literals:
+      - LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=dev,docker,kafka
+      - ENABLE_REQUEST_LOGGING=true
+      - CART_SESSION_TIMEOUT=3600
+      - CART_CACHE_TTL=300
+
+# Use the new patches syntax for better compatibility
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: cart-service
+        namespace: microservices
+      spec:
+        template:
+          spec:
+            containers:
+              - name: cart-service
+                env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: "dev,docker,kafka"
+                  - name: LOG_LEVEL
+                    value: "DEBUG"
+                  - name: ENABLE_REQUEST_LOGGING
+                    value: "true"
+                  # Dev-specific MongoDB configuration
+                  - name: SPRING_DATA_MONGODB_DATABASE
+                    value: "cartdb_dev"
+                  - name: SPRING_DATA_REDIS_DATABASE
+                    value: "3"
+                  # Dev-specific cart configuration
+                  - name: CART_SESSION_TIMEOUT
+                    value: "3600"
+                  - name: CART_CACHE_TTL
+                    value: "300"
+                  # Relaxed timeouts for dev
+                  - name: SPRING_DATA_REDIS_TIMEOUT
+                    value: "5000ms"
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "100m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+    target:
+      kind: Deployment
+      name: cart-service
+
+  # Patch the service to use NodePort for easy access in dev
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: cart-service
+        namespace: microservices
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 8082
+            targetPort: 8082
+            nodePort: 30082
+    target:
+      kind: Service
+      name: cart-service
