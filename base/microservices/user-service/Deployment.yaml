@@ -26,11 +26,22 @@ spec:
             - containerPort: 8081
               name: http
           env:
+            # === CRITICAL FIX: JAVA_OPTS with System Properties (Highest Precedence) ===
+            - name: JAVA_OPTS
+              value: >-
+                -Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m
+                -Dspring.kafka.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+                -Dspring.kafka.producer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+                -Dspring.kafka.consumer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+                -Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/
+                -Dspring.cloud.config.uri=http://config-server.infrastructure.svc.cluster.local:8888
+                -Dspring.profiles.active=docker,kafka
+                -Dlogging.level.org.springframework.kafka=DEBUG
+                -Dlogging.level.com.Ecommerce.User_Service=DEBUG
+
             # Spring Profiles
             - name: SPRING_PROFILES_ACTIVE
               value: "docker,kafka"
-            - name: JAVA_OPTS
-              value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
 
             # Application Configuration
             - name: SPRING_APPLICATION_NAME
@@ -86,7 +97,7 @@ spec:
             - name: SPRING_CLOUD_CONFIG_RETRY_MULTIPLIER
               value: "1.1"
 
-            # CRITICAL: Force Kafka to use the correct cluster address
+            # CRITICAL: Kafka Configuration (Multiple Formats for Maximum Coverage)
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS
@@ -94,6 +105,8 @@ spec:
             - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_BOOTSTRAP-SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
               value: "user-service-group"
@@ -182,6 +195,12 @@ spec:
             # Spring Boot Configuration
             - name: SPRING_ZIPKIN_ENABLED
               value: "false"
+
+            # Force Configuration Loading Order
+            - name: SPRING_CONFIG_LOCATION
+              value: "classpath:/application.yaml"
+            - name: SPRING_PROFILES_INCLUDE
+              value: "kubernetes"
 
           volumeMounts:
             - name: config-volume
