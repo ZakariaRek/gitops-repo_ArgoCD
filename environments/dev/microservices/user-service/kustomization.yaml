@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
   - ../../../../base/microservices/user-service
-  - user-service-ingress.yaml
+#  - user-service-ingress.yaml
 
 namespace: microservices
 
