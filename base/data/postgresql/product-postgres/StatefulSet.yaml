@@ -1,24 +1,25 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: order-postgres
+  name: product-postgres
   namespace: data
   labels:
-    app: order-postgres
+    app: product-postgres
     component: data
-    service: order-service
+    service: product-service
     tier: database
 spec:
+  serviceName: product-postgres-service
   replicas: 1
   selector:
     matchLabels:
-      app: order-postgres
+      app: product-postgres
   template:
     metadata:
       labels:
-        app: order-postgres
+        app: product-postgres
         component: data
-        service: order-service
+        service: product-service
         tier: database
     spec:
       containers:
@@ -31,17 +32,17 @@ spec:
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:
-                  name: order-postgres-config
+                  name: product-postgres-config
                   key: database-name
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: order-postgres-secret
+                  name: product-postgres-secret
                   key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: order-postgres-secret
+                  name: product-postgres-secret
                   key: password
             - name: PGDATA
               value: "/var/lib/postgresql/data/pgdata"
@@ -100,12 +101,25 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 12
       volumes:
-        - name: postgres-data
-          persistentVolumeClaim:
-            claimName: order-postgres-pvc
         - name: postgres-init
           configMap:
-            name: order-postgres-init
+            name: product-postgres-init
         - name: postgres-config
           configMap:
-            name: order-postgres-config
+            name: product-postgres-config
+  # StatefulSet manages its own persistent volumes
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+        labels:
+          app: product-postgres
+          component: data
+          service: product-service
+          tier: database
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: standard

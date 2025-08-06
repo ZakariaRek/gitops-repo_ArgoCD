@@ -4,8 +4,7 @@ kind: Kustomization
 namespace: data
 
 resources:
-  - order-postgres
-  - product-postgres
+  - ../../../../../base/data/postgresql/product-postgres
 
 
 images:

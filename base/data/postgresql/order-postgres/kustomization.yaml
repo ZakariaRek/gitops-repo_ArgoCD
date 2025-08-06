@@ -5,13 +5,13 @@ metadata:
   name: order-postgres
   namespace: data
 
-resources:
-    - Pv.yaml
-#    - Pvc.yaml
-    - Configmap.yaml
-    - Deployment.yaml
-    - Secret.yaml
-    - Service.yaml
+resources:    # Optional: Remove if using dynamic provisioning
+  - Configmap.yaml
+  - StatefulSet.yaml  # Changed from Deployment.yaml
+  - Secret.yaml
+  - Service.yaml
+  # Removed Pvc.yaml - StatefulSet manages its own volume claims
+
 labels:
   - pairs:
       app: order-postgres

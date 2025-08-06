@@ -6,9 +6,6 @@ namespace: data
 resources:
   - ../../../../base/data/user-mongodb
 
-patchesStrategicMerge:
-  - replica-patch.yaml
-  - resource-patch.yaml
 
 configMapGenerator:
   - name: user-mongodb-config
