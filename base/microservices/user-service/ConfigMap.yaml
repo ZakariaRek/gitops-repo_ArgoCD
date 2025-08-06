@@ -240,9 +240,9 @@ data:
       app:
         name: ${spring.application.name}
         description: User Service for E-commerce Application
-        version: latest
+        version: "1.0.0"
         java:
-          version: @java.version@
+          version: "17"
         dependencies:
           eureka-server: eureka-server.infrastructure.svc.cluster.local:8761
           config-server: config-server.infrastructure.svc.cluster.local:8888
