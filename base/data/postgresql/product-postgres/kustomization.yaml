@@ -6,10 +6,10 @@ metadata:
   namespace: data
 
 resources:
-  - ConfigMap.yaml
-  - StatefulSet.yaml
-  - Secret.yaml
   - Service.yaml
+  - Configmap.yaml
+  - Secret.yaml
+  - StatefulSet.yaml
 
 labels:
   - pairs:
