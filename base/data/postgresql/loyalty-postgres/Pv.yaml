@@ -1,5 +1,4 @@
 
-# base/data/postgresql/loyalty-postgres/Pv.yaml
 apiVersion: v1
 kind: PersistentVolume
 metadata:
