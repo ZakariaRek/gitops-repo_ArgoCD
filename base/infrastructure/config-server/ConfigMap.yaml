@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: config-server-config
+  name: config-server-override
   namespace: infrastructure
   labels:
     app: config-server
@@ -18,45 +18,126 @@ data:
         config:
           server:
             git:
-              uri: ${SPRING_CLOUD_CONFIG_SERVER_GIT_URI:https://github.com/Saoudyahya/Ecommerce-App-Config-serveur-repo.git}
+              uri: https://github.com/Saoudyahya/Ecommerce-App-Config-serveur-repo.git
               clone-on-start: true
               default-label: main
+          discovery:
+            enabled: false
       profiles:
         active: docker
     
-    # Eureka client configuration - FIXED URLs
     eureka:
       client:
         serviceUrl:
-          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
+          defaultZone: http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
         register-with-eureka: true
         fetch-registry: true
-        registry-fetch-interval-seconds: 10
-        initial-instance-info-replication-interval-seconds: 10
-        instance-info-replication-interval-seconds: 10
+        registry-fetch-interval-seconds: 30
+        initial-instance-info-replication-interval-seconds: 30
       instance:
         prefer-ip-address: true
         hostname: ${HOSTNAME:config-server}
         instance-id: ${spring.application.name}:${HOSTNAME:config-server}:${server.port}
-        lease-renewal-interval-in-seconds: 10
-        lease-expiration-duration-in-seconds: 20
-        health-check-url-path: /actuator/health
-        status-page-url-path: /actuator/info
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
     
-    # Management endpoints
     management:
       endpoints:
         web:
           exposure:
-            include: health,info,refresh,beans,env,metrics
+            include: health,info,refresh,beans
       endpoint:
         health:
           show-details: always
     
-    # Logging configuration
     logging:
       level:
-        org.springframework.cloud.config: INFO
-        org.springframework.cloud.netflix.eureka: DEBUG
+        com.netflix.eureka: DEBUG
         com.netflix.discovery: DEBUG
-        org.springframework.web: INFO
+        org.springframework.cloud.netflix.eureka: DEBUG
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: infrastructure
+  labels:
+    app: config-server
+    component: infrastructure
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-server
+  template:
+    metadata:
+      labels:
+        app: config-server
+        component: infrastructure
+    spec:
+      containers:
+        - name: config-server
+          image: yahyazakaria123/ecommerce-app-config-service:latest
+          ports:
+            - containerPort: 8888
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker"
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: SPRING_CONFIG_LOCATION
+              value: "classpath:/,file:/config/"
+          volumeMounts:
+            - name: config-override
+              mountPath: /config
+              readOnly: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8888
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8888
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 15
+      volumes:
+        - name: config-override
+          configMap:
+            name: config-server-override
+      initContainers:
+        - name: wait-for-eureka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Testing Eureka connectivity..."
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do
+                echo "Eureka not ready, waiting..."
+                sleep 5
+              done
+              echo "Eureka is reachable!"
+              sleep 15
+      restartPolicy: Always

@@ -7,7 +7,7 @@ metadata:
     app: config-server
     component: infrastructure
 spec:
-  replicas: 2
+  replicas: 1  # Reduce to 1 for troubleshooting
   selector:
     matchLabels:
       app: config-server
@@ -32,27 +32,36 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            # FIXED: Correct Eureka URL with full service DNS name
+            # Force override all possible Eureka URL configurations
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: EUREKA_CLIENT_SERVICE-URL_DEFAULT-ZONE
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            # Spring Boot configuration override
+            - name: SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED
+              value: "false"  # Disable discovery for config server itself
             - name: SPRING_CLOUD_CONFIG_SERVER_GIT_URI
               value: "https://github.com/Saoudyahya/Ecommerce-App-Config-serveur-repo"
-            # Eureka client timing configuration
-            - name: EUREKA_CLIENT_INITIAL_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS
-              value: "10"
-            - name: EUREKA_CLIENT_REGISTRY_FETCH_INTERVAL_SECONDS
-              value: "10"
-            - name: EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS
-              value: "10"
-            - name: EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS
-              value: "20"
-            # Instance configuration
+            # Eureka instance configuration
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
               value: "true"
-          volumeMounts:
-            - name: config-server-config
-              mountPath: /config/application.yml
-              subPath: application.yml
+            - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+              value: "true"
+            - name: EUREKA_CLIENT_FETCH_REGISTRY
+              value: "true"
+            # JVM override for Eureka URL (last resort)
+            - name: JAVA_OPTS
+              value: "-Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka -Deureka.client.service-url.default-zone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+          command:
+            - "java"
+          args:
+            - "-Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - "-Deureka.client.service-url.default-zone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - "-Dspring.profiles.active=docker"
+            - "-jar"
+            - "/app.jar"
           resources:
             requests:
               memory: "512Mi"
@@ -60,7 +69,6 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
-          # Health probes
           livenessProbe:
             httpGet:
               path: /actuator/health
@@ -85,7 +93,6 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 20
-      # Wait for Eureka server to be ready
       initContainers:
         - name: wait-for-eureka
           image: busybox:1.35
@@ -98,10 +105,5 @@ spec:
                 sleep 10
               done
               echo "Eureka server is ready!"
-              # Additional wait to ensure Eureka is fully initialized
-              sleep 30
-      volumes:
-        - name: config-server-config
-          configMap:
-            name: config-server-config
+              sleep 30  # Additional wait for Eureka to fully initialize
       restartPolicy: Always
