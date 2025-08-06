@@ -1,3 +1,4 @@
+# Deployment.yaml - Only the Deployment resource
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,7 +8,7 @@ metadata:
     app: config-server
     component: infrastructure
 spec:
-  replicas: 1  # Reduce to 1 for troubleshooting
+  replicas: 1
   selector:
     matchLabels:
       app: config-server
@@ -26,42 +27,22 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "docker"
-            - name: LOG_LEVEL
-              value: "DEBUG"
             - name: HOSTNAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            # Force override all possible Eureka URL configurations
+            - name: SPRING_CONFIG_LOCATION
+              value: "classpath:/,file:/config/"
+            # Force Eureka URL through environment (backup)
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
-              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - name: EUREKA_CLIENT_SERVICE-URL_DEFAULT-ZONE
-              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            # Spring Boot configuration override
-            - name: SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED
-              value: "false"  # Disable discovery for config server itself
-            - name: SPRING_CLOUD_CONFIG_SERVER_GIT_URI
-              value: "https://github.com/Saoudyahya/Ecommerce-App-Config-serveur-repo"
-            # Eureka instance configuration
-            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
-              value: "true"
-            - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
-              value: "true"
-            - name: EUREKA_CLIENT_FETCH_REGISTRY
-              value: "true"
-            # JVM override for Eureka URL (last resort)
+            # JVM system properties (highest precedence)
             - name: JAVA_OPTS
-              value: "-Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka -Deureka.client.service-url.default-zone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-          command:
-            - "java"
-          args:
-            - "-Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - "-Deureka.client.service-url.default-zone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - "-Dspring.profiles.active=docker"
-            - "-jar"
-            - "/app.jar"
+              value: "-Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+          volumeMounts:
+            - name: config-override
+              mountPath: /config
+              readOnly: true
           resources:
             requests:
               memory: "512Mi"
@@ -73,37 +54,39 @@ spec:
             httpGet:
               path: /actuator/health
               port: 8888
-            initialDelaySeconds: 180
+            initialDelaySeconds: 120
             periodSeconds: 30
             timeoutSeconds: 10
-            failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /actuator/health
-              port: 8888
-            initialDelaySeconds: 90
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 5
-          startupProbe:
             httpGet:
               path: /actuator/health
               port: 8888
             initialDelaySeconds: 60
             periodSeconds: 15
             timeoutSeconds: 10
-            failureThreshold: 20
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8888
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 15
+      volumes:
+        - name: config-override
+          configMap:
+            name: config-server-override
       initContainers:
         - name: wait-for-eureka
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
-              echo "Waiting for Eureka server to be ready..."
+              echo "Testing Eureka connectivity..."
               until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do
-                echo "Eureka server not ready yet, sleeping..."
-                sleep 10
+                echo "Eureka not ready, waiting..."
+                sleep 5
               done
-              echo "Eureka server is ready!"
-              sleep 30  # Additional wait for Eureka to fully initialize
+              echo "Eureka is reachable!"
+              sleep 15
       restartPolicy: Always
