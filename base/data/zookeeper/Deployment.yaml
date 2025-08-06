@@ -48,6 +48,9 @@ spec:
               value: "INFO"
             - name: KAFKA_HEAP_OPTS
               value: "-Xmx256M -Xms256M"
+            # Whitelist the ruok command for readiness probe
+            - name: ZOOKEEPER_4LW_COMMANDS_WHITELIST
+              value: "ruok,stat,conf"
             # Add log4j configuration via environment variables
             - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT
               value: "org.apache.log4j.ConsoleAppender"
