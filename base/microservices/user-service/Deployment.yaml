@@ -194,7 +194,7 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: user-service-config-fixed
+            name: user-service-config
             items:
               - key: application.yml
                 path: application.yml
