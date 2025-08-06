@@ -32,11 +32,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            # FIXED: Correct Eureka URL with full service DNS name
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-              value: "http://eureka-server:8761/eureka/"
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
             - name: SPRING_CLOUD_CONFIG_SERVER_GIT_URI
               value: "https://github.com/Saoudyahya/Ecommerce-App-Config-serveur-repo"
-            # Wait for Eureka to be ready
+            # Eureka client timing configuration
             - name: EUREKA_CLIENT_INITIAL_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS
               value: "10"
             - name: EUREKA_CLIENT_REGISTRY_FETCH_INTERVAL_SECONDS
@@ -45,6 +46,13 @@ spec:
               value: "10"
             - name: EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS
               value: "20"
+            # Instance configuration
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+          volumeMounts:
+            - name: config-server-config
+              mountPath: /config/application.yml
+              subPath: application.yml
           resources:
             requests:
               memory: "512Mi"
@@ -52,12 +60,12 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
-          # Extended startup time to ensure Eureka connection
+          # Health probes
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 8888
-            initialDelaySeconds: 180  # Increased to allow Eureka registration
+            initialDelaySeconds: 180
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
@@ -69,7 +77,6 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 5
-          # Startup probe to handle slow initialization
           startupProbe:
             httpGet:
               path: /actuator/health
@@ -77,8 +84,8 @@ spec:
             initialDelaySeconds: 60
             periodSeconds: 15
             timeoutSeconds: 10
-            failureThreshold: 20  # Allow up to 5 minutes for complete startup
-      # Ensure Eureka server is ready before starting config server
+            failureThreshold: 20
+      # Wait for Eureka server to be ready
       initContainers:
         - name: wait-for-eureka
           image: busybox:1.35
@@ -86,9 +93,15 @@ spec:
           args:
             - |
               echo "Waiting for Eureka server to be ready..."
-              until nc -z eureka-server 8761; do
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do
                 echo "Eureka server not ready yet, sleeping..."
                 sleep 10
               done
               echo "Eureka server is ready!"
+              # Additional wait to ensure Eureka is fully initialized
+              sleep 30
+      volumes:
+        - name: config-server-config
+          configMap:
+            name: config-server-config
       restartPolicy: Always

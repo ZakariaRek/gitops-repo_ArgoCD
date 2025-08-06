@@ -24,11 +24,11 @@ data:
       profiles:
         active: docker
     
-    # Eureka client configuration
+    # Eureka client configuration - FIXED URLs
     eureka:
       client:
         serviceUrl:
-          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure:8761/eureka}
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
         register-with-eureka: true
         fetch-registry: true
         registry-fetch-interval-seconds: 10
@@ -36,14 +36,14 @@ data:
         instance-info-replication-interval-seconds: 10
       instance:
         prefer-ip-address: true
-        hostname: config-server
-        instance-id: ${spring.application.name}:${server.port}
+        hostname: ${HOSTNAME:config-server}
+        instance-id: ${spring.application.name}:${HOSTNAME:config-server}:${server.port}
         lease-renewal-interval-in-seconds: 10
         lease-expiration-duration-in-seconds: 20
         health-check-url-path: /actuator/health
         status-page-url-path: /actuator/info
     
-    # Zipkin distributed tracing configuration
+    # Management endpoints
     management:
       endpoints:
         web:
@@ -52,32 +52,11 @@ data:
       endpoint:
         health:
           show-details: always
-      tracing:
-        sampling:
-          probability: 1.0  # Sample 100% of requests for development
-      zipkin:
-        tracing:
-          endpoint: http://zipkin-server.infrastructure:9411/api/v2/spans
-    
-    # Zipkin tracing configuration
-    spring.zipkin:
-      base-url: http://zipkin-server.infrastructure:9411
-      sender:
-        type: web
-    
-    # Sleuth configuration for distributed tracing
-    spring.sleuth:
-      zipkin:
-        base-url: http://zipkin-server.infrastructure:9411
-      sampler:
-        probability: 1.0
-      trace-id128: true
-      supports-join: false
     
     # Logging configuration
     logging:
       level:
         org.springframework.cloud.config: INFO
-        org.springframework.cloud.netflix.eureka: INFO
-        org.springframework.web: DEBUG
-        zipkin2: INFO
+        org.springframework.cloud.netflix.eureka: DEBUG
+        com.netflix.discovery: DEBUG
+        org.springframework.web: INFO
