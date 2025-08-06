@@ -1,0 +1,318 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shipping-postgres-init
+  namespace: data
+  labels:
+    app: shipping-postgres
+    component: data
+    service: shipping-service
+data:
+  # Database initialization script
+  01-init-database.sql: |
+    -- Initialize shipping database
+    \echo 'Creating shipping service database schema...'
+    
+    -- Create extensions if they don't exist
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+    
+    -- Create enum types
+    DO $$ BEGIN
+    CREATE TYPE shipping_status AS ENUM (
+            'pending',
+            'processing', 
+            'shipped',
+            'in_transit',
+            'out_for_delivery',
+            'delivered',
+            'failed',
+            'returned',
+            'cancelled'
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    
+    DO $$ BEGIN
+    CREATE TYPE shipping_method AS ENUM (
+            'standard',
+            'express',
+            'overnight',
+            'same_day',
+            'two_day',
+            'ground',
+            'air',
+            'freight'
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    
+    DO $$ BEGIN
+    CREATE TYPE address_type AS ENUM (
+            'shipping',
+            'billing',
+            'pickup',
+            'delivery',
+            'warehouse',
+            'depot'
+        );
+    EXCEPTION
+        WHEN duplicate_object THEN null;
+    END $$;
+    
+    -- Create addresses table
+    CREATE TABLE IF NOT EXISTS addresses (
+                                             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        address_type address_type NOT NULL DEFAULT 'shipping',
+        first_name VARCHAR(100),
+        last_name VARCHAR(100),
+        company VARCHAR(200),
+        address_line_1 VARCHAR(255) NOT NULL,
+        address_line_2 VARCHAR(255),
+        city VARCHAR(100) NOT NULL,
+        state VARCHAR(100),
+        postal_code VARCHAR(20) NOT NULL,
+        country VARCHAR(100) NOT NULL DEFAULT 'US',
+        phone VARCHAR(20),
+        email VARCHAR(255),
+        latitude DECIMAL(10, 8),
+        longitude DECIMAL(11, 8),
+        is_validated BOOLEAN DEFAULT FALSE,
+        is_residential BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                                 );
+    
+    -- Create shippings table
+    CREATE TABLE IF NOT EXISTS shippings (
+                                             id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_id VARCHAR(100) NOT NULL,
+        tracking_number VARCHAR(100) UNIQUE,
+        carrier VARCHAR(100),
+        shipping_method shipping_method NOT NULL DEFAULT 'standard',
+        status shipping_status NOT NULL DEFAULT 'pending',
+        
+        -- Address references
+        origin_address_id UUID REFERENCES addresses(id),
+        destination_address_id UUID REFERENCES addresses(id),
+        
+        -- Shipping details
+        weight DECIMAL(10, 2),
+        length DECIMAL(10, 2),
+        width DECIMAL(10, 2),
+        height DECIMAL(10, 2),
+        declared_value DECIMAL(12, 2),
+        insurance_amount DECIMAL(12, 2),
+        
+        -- Costs
+        shipping_cost DECIMAL(12, 2),
+        insurance_cost DECIMAL(12, 2),
+        tax_amount DECIMAL(12, 2),
+        total_cost DECIMAL(12, 2),
+        
+        -- Dates
+        estimated_delivery_date TIMESTAMP WITH TIME ZONE,
+        actual_delivery_date TIMESTAMP WITH TIME ZONE,
+        shipped_date TIMESTAMP WITH TIME ZONE,
+        
+        -- Metadata
+        notes TEXT,
+        special_instructions TEXT,
+        signature_required BOOLEAN DEFAULT FALSE,
+        adult_signature_required BOOLEAN DEFAULT FALSE,
+        
+        -- Audit fields
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                                 created_by VARCHAR(100),
+        updated_by VARCHAR(100)
+        );
+    
+    -- Create tracking_records table
+    CREATE TABLE IF NOT EXISTS tracking_records (
+                                                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        shipping_id UUID NOT NULL REFERENCES shippings(id) ON DELETE CASCADE,
+        tracking_number VARCHAR(100) NOT NULL,
+        status shipping_status NOT NULL,
+        location VARCHAR(255),
+        description TEXT,
+        event_time TIMESTAMP WITH TIME ZONE NOT NULL,
+                                                               carrier VARCHAR(100),
+        
+        -- GPS coordinates
+        latitude DECIMAL(10, 8),
+        longitude DECIMAL(11, 8),
+        
+        -- Additional tracking info
+        facility VARCHAR(200),
+        next_location VARCHAR(255),
+        estimated_delivery TIMESTAMP WITH TIME ZONE,
+        
+        -- Metadata
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                                                               );
+    
+    -- Create location_updates table for real-time GPS tracking
+    CREATE TABLE IF NOT EXISTS location_updates (
+                                                    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        shipping_id UUID NOT NULL REFERENCES shippings(id) ON DELETE CASCADE,
+        latitude DECIMAL(10, 8) NOT NULL,
+        longitude DECIMAL(11, 8) NOT NULL,
+        accuracy DECIMAL(6, 2),
+        altitude DECIMAL(8, 2),
+        speed DECIMAL(8, 2),
+        bearing DECIMAL(6, 2),
+        address VARCHAR(500),
+        
+        -- Device/driver info
+        device_id VARCHAR(100),
+        driver_id VARCHAR(100),
+        vehicle_id VARCHAR(100),
+        
+        -- Timestamps
+        recorded_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                                                               
+                                                               -- Status
+                                                               is_active BOOLEAN DEFAULT TRUE
+                                                               );
+    
+    -- Create shipping_events table for audit trail
+    CREATE TABLE IF NOT EXISTS shipping_events (
+                                                   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        shipping_id UUID NOT NULL REFERENCES shippings(id) ON DELETE CASCADE,
+        event_type VARCHAR(100) NOT NULL,
+        event_data JSONB,
+        user_id VARCHAR(100),
+        ip_address INET,
+        user_agent TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                                                               );
+    
+    -- Create indexes for better performance
+    CREATE INDEX IF NOT EXISTS idx_shippings_order_id ON shippings(order_id);
+    CREATE INDEX IF NOT EXISTS idx_shippings_tracking_number ON shippings(tracking_number);
+    CREATE INDEX IF NOT EXISTS idx_shippings_status ON shippings(status);
+    CREATE INDEX IF NOT EXISTS idx_shippings_created_at ON shippings(created_at);
+    CREATE INDEX IF NOT EXISTS idx_shippings_carrier ON shippings(carrier);
+    
+    CREATE INDEX IF NOT EXISTS idx_tracking_records_shipping_id ON tracking_records(shipping_id);
+    CREATE INDEX IF NOT EXISTS idx_tracking_records_tracking_number ON tracking_records(tracking_number);
+    CREATE INDEX IF NOT EXISTS idx_tracking_records_status ON tracking_records(status);
+    CREATE INDEX IF NOT EXISTS idx_tracking_records_event_time ON tracking_records(event_time);
+    
+    CREATE INDEX IF NOT EXISTS idx_location_updates_shipping_id ON location_updates(shipping_id);
+    CREATE INDEX IF NOT EXISTS idx_location_updates_recorded_at ON location_updates(recorded_at);
+    CREATE INDEX IF NOT EXISTS idx_location_updates_active ON location_updates(is_active);
+    
+    CREATE INDEX IF NOT EXISTS idx_addresses_type ON addresses(address_type);
+    CREATE INDEX IF NOT EXISTS idx_addresses_country ON addresses(country);
+    CREATE INDEX IF NOT EXISTS idx_addresses_postal_code ON addresses(postal_code);
+    
+    CREATE INDEX IF NOT EXISTS idx_shipping_events_shipping_id ON shipping_events(shipping_id);
+    CREATE INDEX IF NOT EXISTS idx_shipping_events_type ON shipping_events(event_type);
+    CREATE INDEX IF NOT EXISTS idx_shipping_events_created_at ON shipping_events(created_at);
+    
+    -- Create updated_at trigger function
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+    
+    -- Add triggers for updated_at
+    DROP TRIGGER IF EXISTS update_addresses_updated_at ON addresses;
+    CREATE TRIGGER update_addresses_updated_at
+        BEFORE UPDATE ON addresses
+        FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+    
+    DROP TRIGGER IF EXISTS update_shippings_updated_at ON shippings;
+    CREATE TRIGGER update_shippings_updated_at
+        BEFORE UPDATE ON shippings
+        FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+    
+    DROP TRIGGER IF EXISTS update_tracking_records_updated_at ON tracking_records;
+    CREATE TRIGGER update_tracking_records_updated_at
+        BEFORE UPDATE ON tracking_records
+        FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+    
+    \echo 'Shipping service database schema created successfully!'
+
+  02-seed-data.sql: |
+    -- Seed default data for shipping service
+    \echo 'Seeding default data for shipping service...'
+    
+    -- Insert default warehouse addresses
+    INSERT INTO addresses (id, address_type, first_name, last_name, company, address_line_1, city, state, postal_code, country, phone, email, is_validated, is_residential) 
+    VALUES 
+    (
+        '550e8400-e29b-41d4-a716-446655440001',
+        'warehouse',
+        'Warehouse',
+        'Manager',
+        'NexusCommerce Distribution Center',
+        '1234 Industrial Blvd',
+        'Los Angeles',
+        'CA',
+        '90012',
+        'US',
+        '+1-555-0101',
+        'warehouse-la@nexuscommerce.com',
+        TRUE,
+        FALSE
+    ),
+    (
+        '550e8400-e29b-41d4-a716-446655440002',
+        'warehouse',
+        'Warehouse',
+        'Manager',
+        'NexusCommerce Distribution Center',
+        '5678 Commerce Ave',
+        'New York',
+        'NY',
+        '10001',
+        'US',
+        '+1-555-0102',
+        'warehouse-ny@nexuscommerce.com',
+        TRUE,
+        FALSE
+    ),
+    (
+        '550e8400-e29b-41d4-a716-446655440003',
+        'warehouse',
+        'Warehouse',
+        'Manager',
+        'NexusCommerce Distribution Center',
+        '9999 Tech Park Dr',
+        'Austin',
+        'TX',
+        '73301',
+        'US',
+        '+1-555-0103',
+        'warehouse-tx@nexuscommerce.com',
+        TRUE,
+        FALSE
+    )
+    ON CONFLICT (id) DO NOTHING;
+    
+    \echo 'Default shipping data seeded successfully!'
+
+  03-grant-permissions.sql: |
+    -- Grant permissions to shipping service user
+    \echo 'Granting permissions to shipping service user...'
+    
+    -- Grant table permissions
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO shippingservice;
+    GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO shippingservice;
+    
+    -- Grant permissions on future objects
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO shippingservice;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO shippingservice;
+    
+    \echo 'Permissions granted successfully!'
+    \echo 'Shipping service database initialization completed!'

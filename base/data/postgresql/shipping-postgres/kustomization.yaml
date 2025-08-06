@@ -6,10 +6,12 @@ metadata:
   namespace: data
 
 resources:
-    - Configmap.yaml
-    - Secret.yaml
-    - StatefulSet.yaml
-    - Service.yaml
+  - Configmap.yaml
+  - Secret.yaml
+  - StatefulSet.yaml
+  - Service.yaml
+  - HPA.yaml
+  - Init-ConfigMap.yaml  # Add the initialization ConfigMap
 
 labels:
   - pairs:
