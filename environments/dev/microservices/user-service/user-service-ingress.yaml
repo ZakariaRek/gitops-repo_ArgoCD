@@ -3,33 +3,113 @@ kind: Ingress
 metadata:
   name: user-service-ingress
   namespace: microservices
+  labels:
+    app: user-service
+    component: microservices
+    environment: dev
   annotations:
+    # NGINX Ingress Controller annotations
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/cors-allow-origin: "*"
     nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE, PATCH"
-    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization,X-XSRF-TOKEN"
     nginx.ingress.kubernetes.io/enable-cors: "true"
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+
+    # Additional dev-specific annotations
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header X-Environment "development" always;
+      add_header X-Service "user-service" always;
+
+    # SSL and security (for dev environment)
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+
+    # Rate limiting (more lenient for dev)
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+
 spec:
   ingressClassName: nginx
   rules:
-  - host: user.nexus-commerce.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: user-service
-            port:
-              number: 8081
-  - host: user-api.nexus-commerce.local
-    http:
-      paths:
-      - path: /api/users
-        pathType: Prefix
-        backend:
-          service:
-            name: user-service
-            port:
-              number: 8081
+    # Primary user service endpoint
+    - host: user-dev.nexus-commerce.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8081
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8081
+          # Health check endpoint
+          - path: /actuator
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8081
+
+    # Alternative API-focused endpoint
+    - host: user-api-dev.nexus-commerce.local
+      http:
+        paths:
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8081
+          - path: /actuator
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8081
+
+    # Localhost development (optional)
+    - host: localhost
+      http:
+        paths:
+          - path: /api/users
+            pathType: Prefix
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8081
+
+---
+# Optional: Service Monitor for Prometheus (if using monitoring stack)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: user-service-monitor
+  namespace: microservices
+  labels:
+    app: user-service
+    component: microservices
+    environment: dev
+spec:
+  selector:
+    matchLabels:
+      app: user-service
+  endpoints:
+    - port: http
+      path: /api/users/actuator/prometheus
+      interval: 30s
+      scrapeTimeout: 10s

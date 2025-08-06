@@ -22,7 +22,7 @@ labels:
 # Use development image tag
 images:
   - name: yahyazakaria123/ecommerce-app-user-service
-    newTag: latest  # You can change to dev-latest when available
+    newTag: latest
 
 # Reduce replicas for dev (save resources)
 replicas:
@@ -40,168 +40,233 @@ configMapGenerator:
       - EUREKA_INSTANCE_HOSTNAME=localhost
       - JWT_EXPIRATION_MS=86400000
 
-# Use patches with JSON patch syntax for precise control
-patches:
-  # Patch deployment for dev-specific environment variables and resources
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/env
-        value:
-          # Spring Profiles
-          - name: SPRING_PROFILES_ACTIVE
-            value: "dev,docker,kafka"
-
-          # Application Configuration
-          - name: SPRING_APPLICATION_NAME
-            value: "user-service"
-          - name: SERVER_PORT
-            value: "8081"
-          - name: SERVER_SERVLET_CONTEXT_PATH
-            value: "/api/users"
-
-          # Service Discovery (Eureka)
-          - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-            value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/"
-          - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
-            value: "true"
-          - name: EUREKA_INSTANCE_HOSTNAME
-            value: "localhost"
-
-          # Config Server
-          - name: SPRING_CLOUD_CONFIG_URI
-            value: "http://config-server.infrastructure.svc.cluster.local:8888"
-
-          # MongoDB Configuration
-          - name: SPRING_DATA_MONGODB_HOST
-            value: "user-mongodb-headless.data.svc.cluster.local"
-          - name: SPRING_DATA_MONGODB_PORT
-            value: "27017"
-          - name: SPRING_DATA_MONGODB_DATABASE
-            value: "User-service-dev"
-          - name: SPRING_DATA_MONGODB_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: user-service-secrets
-                key: mongodb-username
-          - name: SPRING_DATA_MONGODB_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: user-service-secrets
-                key: mongodb-password
-          - name: SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE
-            value: "admin"
-
-          # Kafka Configuration
-          - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-            value: "kafka-service.data.svc.cluster.local:9092"
-          - name: SPRING_KAFKA_CONSUMER_GROUP_ID
-            value: "user-service-group"
-
-          # JWT Configuration
-          - name: JWT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: user-service-secrets
-                key: jwt-secret
-          - name: USER_SERVICE_APP_JWT_EXPIRATION_MS
-            value: "86400000"
-          - name: USER_SERVICE_APP_JWT_COOKIE_NAME
-            value: "user-service"
-
-          # OAuth2 Configuration
-          - name: GOOGLE_CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                name: user-service-secrets
-                key: google-client-id
-          - name: GOOGLE_CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: user-service-secrets
-                key: google-client-secret
-          - name: APP_OAUTH2_AUTHORIZED_REDIRECT_URIS
-            value: "http://localhost:3000/auth/oauth2/redirect"
-
-          # ELK Stack Configuration
-          - name: LOGSTASH_HOST
-            value: "logstash-service.logging.svc.cluster.local"
-          - name: LOGSTASH_PORT
-            value: "5000"
-
-          # Management and Monitoring
-          - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
-            value: "*"
-          - name: MANAGEMENT_ENDPOINT_ENV_SHOW_VALUES
-            value: "ALWAYS"
-          - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
-            value: "always"
-
-          # Logging Configuration
-          - name: LOGGING_LEVEL_COM_ECOMMERCE_USER_SERVICE
-            value: "DEBUG"
-          - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB
-            value: "DEBUG"
-          - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA
-            value: "DEBUG"
-          - name: LOGGING_LEVEL_ORG_APACHE_KAFKA
-            value: "WARN"
-          - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_DATA_MONGODB
-            value: "DEBUG"
-          - name: LOGGING_LEVEL_ROOT
-            value: "DEBUG"
-
-          # Spring Boot Configuration
-          - name: SPRING_ZIPKIN_ENABLED
-            value: "false"
-
-          # Dev-specific settings
-          - name: LOG_LEVEL
-            value: "DEBUG"
-          - name: ENABLE_REQUEST_LOGGING
-            value: "true"
-    target:
-      kind: Deployment
+# Use patchesStrategicMerge instead of patches for better compatibility
+patchesStrategicMerge:
+  # Patch deployment for dev-specific configurations
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
       name: user-service
+      namespace: microservices
+    spec:
+      template:
+        spec:
+          containers:
+            - name: user-service
+              # Dev-specific resource limits (reduced for development)
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "500m"
+              env:
+                # Override specific environment variables for dev
+                - name: SPRING_PROFILES_ACTIVE
+                  value: "dev,docker,kafka"
+                - name: SPRING_DATA_MONGODB_DATABASE
+                  value: "User-service-dev"
+                - name: EUREKA_INSTANCE_HOSTNAME
+                  value: "user-service"
+                - name: LOGGING_LEVEL_ROOT
+                  value: "DEBUG"
+                - name: LOG_LEVEL
+                  value: "DEBUG"
+                - name: ENABLE_REQUEST_LOGGING
+                  value: "true"
+                - name: MANAGEMENT_ENDPOINT_LOGGERS_ENABLED
+                  value: "true"
+                - name: SPRING_JPA_SHOW_SQL
+                  value: "true"
+                - name: SPRING_DATA_MONGODB_URI
+                  value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@user-mongodb-headless.data.svc.cluster.local:27017/User-service-dev?authSource=admin"
 
-  # Patch resources for dev environment
-  - patch: |-
-      - op: replace
-        path: /spec/template/spec/containers/0/resources
-        value:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "250m"
-    target:
-      kind: Deployment
+  # Patch service to use NodePort for easy access in dev
+  - |-
+    apiVersion: v1
+    kind: Service
+    metadata:
       name: user-service
+      namespace: microservices
+      annotations:
+        service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    spec:
+      type: NodePort
+      ports:
+        - name: http
+          port: 8081
+          targetPort: 8081
+          nodePort: 30081
+          protocol: TCP
 
-  # Patch the service to use NodePort for easy access in dev
-  - patch: |-
-      - op: replace
-        path: /spec/type
-        value: NodePort
-      - op: replace
-        path: /spec/ports/0/nodePort
-        value: 30081
-    target:
-      kind: Service
-      name: user-service
-
-  # Update secrets for dev environment
-  - patch: |-
-      - op: replace
-        path: /data
-        value:
-          # Dev-specific MongoDB credentials
-          mongodb-username: dXNlcnNlcnZpY2VfZGV2  # userservice_dev
-          mongodb-password: dXNlcnNlcnZpY2VfZGV2XzEyMw==  # userservice_dev_123
-          # Keep placeholder OAuth2 and JWT secrets for dev (replace with actual values when deploying)
-          google-client-id: eW91ci1nb29nbGUtY2xpZW50LWlkLWhlcmU=  # your-google-client-id-here
-          google-client-secret: eW91ci1nb29nbGUtY2xpZW50LXNlY3JldC1oZXJl  # your-google-client-secret-here
-          jwt-secret: ZGV2LWp3dC1zZWNyZXQtZm9yLXRlc3Rpbmc=  # dev-jwt-secret-for-testing (simpler for dev)
-    target:
-      kind: Secret
+  # Patch secrets for dev environment
+  - |-
+    apiVersion: v1
+    kind: Secret
+    metadata:
       name: user-service-secrets
+      namespace: microservices
+    type: Opaque
+    data:
+      # Dev-specific MongoDB credentials (base64 encoded)
+      mongodb-username: dXNlcnNlcnZpY2VfZGV2  # userservice_dev
+      mongodb-password: dXNlcnNlcnZpY2VfZGV2XzEyMw==  # userservice_dev_123
+      # Simplified JWT secret for dev (base64 encoded)
+      jwt-secret: ZGV2LWp3dC1zZWNyZXQtZm9yLXRlc3Rpbmctb25seQ==  # dev-jwt-secret-for-testing-only
+      # Placeholder OAuth2 credentials for dev (base64 encoded)
+      google-client-id: eW91ci1nb29nbGUtY2xpZW50LWlkLWhlcmU=  # your-google-client-id-here
+      google-client-secret: eW91ci1nb29nbGUtY2xpZW50LXNlY3JldC1oZXJl  # your-google-client-secret-here
+
+  # Patch ConfigMap for dev-specific application configuration
+  - |-
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: user-service-config
+      namespace: microservices
+    data:
+      application.yml: |
+        server:
+          port: 8081
+          servlet:
+            context-path: /api/users
+          error:
+            include-stacktrace: always
+            include-message: always
+            include-binding-errors: always
+        
+        debug: true
+        
+        spring:
+          profiles:
+            active: dev,docker,kafka
+          config:
+            import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+            retry:
+              initial-interval: 3000
+              max-attempts: 6
+              max-interval: 4000
+              multiplier: 1.1
+            fail-fast: false
+          cloud:
+            config:
+              uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+              enabled: true
+              discovery:
+                enabled: false
+              retry:
+                enabled: true
+                initial-interval: 3000
+                max-attempts: 6
+                max-interval: 4000
+                multiplier: 1.1
+              fail-fast: false
+          application:
+            name: user-service
+        
+          # Dev MongoDB Configuration
+          data:
+            mongodb:
+              host: ${SPRING_DATA_MONGODB_HOST:user-mongodb-headless.data.svc.cluster.local}
+              port: ${SPRING_DATA_MONGODB_PORT:27017}
+              database: ${SPRING_DATA_MONGODB_DATABASE:User-service-dev}
+              username: ${SPRING_DATA_MONGODB_USERNAME:userservice_dev}
+              password: ${SPRING_DATA_MONGODB_PASSWORD:userservice_dev_123}
+              uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice_dev:userservice_dev_123@user-mongodb-headless.data.svc.cluster.local:27017/User-service-dev}
+              authentication-database: ${SPRING_DATA_MONGODB_AUTH_DATABASE:admin}
+        
+            # Redis Configuration
+            redis:
+              host: ${SPRING_DATA_REDIS_HOST:redis-service.data.svc.cluster.local}
+              port: ${SPRING_DATA_REDIS_PORT:6379}
+              database: ${SPRING_DATA_REDIS_DATABASE:2}  # Use different DB for dev
+              timeout: ${SPRING_DATA_REDIS_TIMEOUT:2000ms}
+        
+          # Kafka Configuration
+          kafka:
+            bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+            producer:
+              key-serializer: org.apache.kafka.common.serialization.StringSerializer
+              value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+              properties:
+                spring.json.add.type.headers: false
+                acks: all
+                retries: 3
+            consumer:
+              group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:user-service-dev-group}
+              auto-offset-reset: earliest
+              enable-auto-commit: false
+        
+        # Dev Eureka Configuration
+        eureka:
+          instance:
+            preferIpAddress: true
+            instanceId: ${spring.application.name}:dev:${server.port}
+            hostname: user-service
+            metadataMap:
+              instanceId: ${spring.application.name}:dev:${server.port}
+              zone: dev
+              environment: development
+          client:
+            registerWithEureka: true
+            fetchRegistry: true
+            serviceUrl:
+              defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
+        
+        # Enhanced Management for Dev
+        management:
+          endpoints:
+            web:
+              exposure:
+                include: "*"
+          endpoint:
+            health:
+              show-details: "ALWAYS"
+            loggers:
+              enabled: true
+            env:
+              show-values: "ALWAYS"
+          metrics:
+            tags:
+              environment: dev
+        
+        # Dev-specific User Service Configuration
+        user:
+          session:
+            timeout: 7200 # 2 hours for dev
+          cache:
+            ttl: 3600 # 1 hour for dev
+          security:
+            jwt:
+              secret: ${JWT_SECRET:dev-jwt-secret-for-testing-only}
+              expiration: 86400 # 24 hours
+        
+        # Enhanced Logging for Development
+        logging:
+          level:
+            org.springframework.kafka: DEBUG
+            org.apache.kafka: INFO
+            com.Ecommerce.User_Service: DEBUG
+            org.springframework.data.mongodb: DEBUG
+            org.springframework.cloud.config: DEBUG
+            org.springframework.cloud.netflix.eureka: DEBUG
+            com.netflix.eureka: DEBUG
+            com.netflix.discovery: DEBUG
+            org.springframework.web: DEBUG
+            org.springframework.security: DEBUG
+            org.springframework.boot.actuate: DEBUG
+            root: DEBUG
+          pattern:
+            console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{50} - %msg%n"
+          file:
+            name: /app/logs/user-service-dev.log
+        
+        # Dev Info
+        info:
+          app:
+            name: ${spring.application.name}
+            description: User Service for E-commerce Application (Development)
+            version: dev-latest
+            environment: development
