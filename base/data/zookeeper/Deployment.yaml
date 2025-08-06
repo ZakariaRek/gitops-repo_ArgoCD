@@ -47,14 +47,21 @@ spec:
             - name: ZOOKEEPER_LOG4J_ROOT_LOGLEVEL
               value: "INFO"
             - name: KAFKA_HEAP_OPTS
-              value: "-Xmx512M -Xms512M"
+              value: "-Xmx256M -Xms256M"
+            # Add log4j configuration via environment variables
+            - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT
+              value: "org.apache.log4j.ConsoleAppender"
+            - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT_LAYOUT
+              value: "org.apache.log4j.PatternLayout"
+            - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT_LAYOUT_CONVERSIONPATTERN
+              value: "%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n"
           resources:
             requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
               memory: "512Mi"
               cpu: "250m"
-            limits:
-              memory: "1Gi"
-              cpu: "500m"
           volumeMounts:
             - name: zookeeper-data
               mountPath: /var/lib/zookeeper/data
@@ -63,9 +70,7 @@ spec:
             - name: zookeeper-config
               mountPath: /etc/kafka/zoo.cfg
               subPath: zoo.cfg
-            - name: zookeeper-config
-              mountPath: /etc/kafka/log4j.properties
-              subPath: log4j.properties
+            # Remove the log4j.properties mount that's causing the issue
           livenessProbe:
             tcpSocket:
               port: 2181
