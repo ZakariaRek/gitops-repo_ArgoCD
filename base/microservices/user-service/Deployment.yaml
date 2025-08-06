@@ -18,77 +18,168 @@ spec:
         component: microservices
     spec:
       containers:
-      - name: user-service
-        image: yahyazakaria123/ecommerce-app-user-service:latest
-        ports:
-        - containerPort: 8080
-          name: http
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "docker,kafka"
-        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-          value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-        - name: SPRING_CLOUD_CONFIG_URI
-          value: "http://config-server.infrastructure.svc.cluster.local:8888"
-        - name: SPRING_APPLICATION_NAME
-          value: "user-service"
-        - name: SERVER_PORT
-          value: "8080"
-        # Database configuration
-        - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/userdb"
-        - name: SPRING_DATASOURCE_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: user-service-secrets
-              key: db-username
-        - name: SPRING_DATASOURCE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: user-service-secrets
-              key: db-password
-        # Redis configuration for caching/sessions
-        - name: SPRING_DATA_REDIS_HOST
-          value: "redis-service.data.svc.cluster.local"
-        - name: SPRING_DATA_REDIS_PORT
-          value: "6379"
-        - name: SPRING_DATA_REDIS_DATABASE
-          value: "1"
-        # Kafka configuration
-        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-          value: "kafka-service.data.svc.cluster.local:9092"
-        # JWT Configuration
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: user-service-secrets
-              key: jwt-secret
-        - name: JWT_EXPIRATION
-          value: "86400000"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8080
-          initialDelaySeconds: 90
-          periodSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
-            port: 8080
-          initialDelaySeconds: 60
-          periodSeconds: 10
-        startupProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          failureThreshold: 18
-    
+        - name: user-service
+          image: yahyazakaria123/ecommerce-app-user-service:latest
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            # Spring Profiles
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,kafka"
+
+            # Application Configuration
+            - name: SPRING_APPLICATION_NAME
+              value: "user-service"
+            - name: SERVER_PORT
+              value: "8081"
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              value: "/api/users"
+
+            # Service Discovery (Eureka)
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: EUREKA_INSTANCE_HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+
+            # Config Server
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server.infrastructure.svc.cluster.local:8888"
+
+            # MongoDB Configuration
+            - name: SPRING_DATA_MONGODB_HOST
+              value: "user-mongodb-headless.data.svc.cluster.local"
+            - name: SPRING_DATA_MONGODB_PORT
+              value: "27017"
+            - name: SPRING_DATA_MONGODB_DATABASE
+              value: "User-service"
+            - name: SPRING_DATA_MONGODB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: mongodb-username
+            - name: SPRING_DATA_MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: mongodb-password
+            - name: SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE
+              value: "admin"
+
+            # Kafka Configuration
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+              value: "user-service-group"
+
+            # JWT Configuration
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: jwt-secret
+            - name: USER_SERVICE_APP_JWT_EXPIRATION_MS
+              value: "86400000"
+            - name: USER_SERVICE_APP_JWT_COOKIE_NAME
+              value: "user-service"
+
+            # OAuth2 Configuration
+            - name: GOOGLE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: google-client-id
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: google-client-secret
+            - name: APP_OAUTH2_AUTHORIZED_REDIRECT_URIS
+              value: "http://localhost:3000/auth/oauth2/redirect"
+
+            # ELK Stack Configuration
+            - name: LOGSTASH_HOST
+              value: "logstash-service.logging.svc.cluster.local"
+            - name: LOGSTASH_PORT
+              value: "5000"
+
+            # Management and Monitoring
+            - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
+              value: "*"
+            - name: MANAGEMENT_ENDPOINT_ENV_SHOW_VALUES
+              value: "ALWAYS"
+            - name: MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS
+              value: "always"
+
+            # Logging Configuration
+            - name: LOGGING_LEVEL_COM_ECOMMERCE_USER_SERVICE
+              value: "DEBUG"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB
+              value: "DEBUG"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA
+              value: "DEBUG"
+            - name: LOGGING_LEVEL_ORG_APACHE_KAFKA
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_DATA_MONGODB
+              value: "DEBUG"
+
+            # Spring Boot Configuration
+            - name: SPRING_ZIPKIN_ENABLED
+              value: "false"
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # Health Checks
+          livenessProbe:
+            httpGet:
+              path: /api/users/actuator/health
+              port: 8081
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/users/actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          startupProbe:
+            httpGet:
+              path: /api/users/actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 18
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: user-service-config
+            items:
+              - key: application.yml
+                path: application.yml
+              - key: bootstrap.yml
+                path: bootstrap.yml
+              - key: logback-spring.xml
+                path: logback-spring.xml
