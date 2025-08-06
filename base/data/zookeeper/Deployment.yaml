@@ -48,9 +48,9 @@ spec:
               value: "INFO"
             - name: KAFKA_HEAP_OPTS
               value: "-Xmx256M -Xms256M"
-            # Enable all 4-letter word commands for health checks
+            # Enable specific 4-letter word commands for health checks
             - name: ZOOKEEPER_4LW_COMMANDS_WHITELIST
-              value: "*"
+              value: "srvr,stat,ruok,conf,cons,crst,envi,mntr,wchs,wchc,wchp,dirs"
             # Add log4j configuration via environment variables
             - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT
               value: "org.apache.log4j.ConsoleAppender"
@@ -85,7 +85,7 @@ spec:
               command:
                 - sh
                 - -c
-                - "echo stat | nc localhost 2181 | grep Mode"
+                - "echo srvr | nc localhost 2181 | grep -q Mode"
             initialDelaySeconds: 20
             periodSeconds: 5
             timeoutSeconds: 3
