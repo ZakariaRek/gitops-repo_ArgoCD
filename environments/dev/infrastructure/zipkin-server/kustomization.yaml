@@ -1,0 +1,73 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../tools/zipkin-server
+
+namespace: infrastructure
+
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+images:
+  - name: openzipkin/zipkin
+    newTag: latest
+
+replicas:
+  - name: zipkin-server
+    count: 1
+
+configMapGenerator:
+  - name: zipkin-dev-config
+    literals:
+      - LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=dev,docker
+      - STORAGE_TYPE=mem
+
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: zipkin-server
+      spec:
+        template:
+          spec:
+            containers:
+              - name: zipkin
+                env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: "dev,docker"
+                  - name: LOG_LEVEL
+                    value: "DEBUG"
+                  - name: STORAGE_TYPE
+                    value: "mem"
+                  - name: JAVA_OPTS
+                    value: "-XX:+UseG1GC -Xms256m -Xmx512m"
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "100m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+    target:
+      kind: Deployment
+      name: zipkin-server
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: zipkin-server
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 9411
+            targetPort: 9411
+            nodePort: 30941
+    target:
+      kind: Service
+      name: zipkin-server
