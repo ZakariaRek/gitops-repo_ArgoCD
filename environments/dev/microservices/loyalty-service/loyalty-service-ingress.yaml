@@ -1,0 +1,36 @@
+# environments/dev/microservices/loyalty-service/loyalty-service-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loyalty-service-ingress
+  namespace: microservices
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE, PATCH"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: loyalty.nexus-commerce.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: loyalty-service
+                port:
+                  number: 8084
+    - host: loyalty-api.nexus-commerce.local
+      http:
+        paths:
+          - path: /api/loyalty
+            pathType: Prefix
+            backend:
+              service:
+                name: loyalty-service
+                port:
+                  number: 8084

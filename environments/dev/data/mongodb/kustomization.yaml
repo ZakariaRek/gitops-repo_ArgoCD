@@ -4,12 +4,11 @@ kind: Kustomization
 namespace: data
 
 resources:
-  - order-postgres
-  - product-postgres
-  - loyalty-postgres
+  - user-mongodb
+  - cart-mongodb
 
 
 
 images:
-  - name: postgres
-    newTag: "16"
+  - name: mongo
+    newTag: "7.0"

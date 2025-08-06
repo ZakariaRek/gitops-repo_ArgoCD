@@ -1,0 +1,182 @@
+# base/microservices/loyalty-service/ConfigMap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loyalty-service-config
+  namespace: microservices
+  labels:
+    app: loyalty-service
+    component: microservices
+data:
+  application.yml: |
+    server:
+      port: 8084
+      servlet:
+        context-path: /api/loyalty
+      error:
+        include-stacktrace: on_param
+        include-message: always
+    
+    spring:
+      application:
+        name: loyalty-service
+      profiles:
+        active: docker,kafka
+      config:
+        import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+      
+      # Database Configuration
+      datasource:
+        url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://loyalty-postgres-service.data.svc.cluster.local:5432/loyalty-service}
+        username: ${SPRING_DATASOURCE_USERNAME:loyaltyservice}
+        password: ${SPRING_DATASOURCE_PASSWORD:loyaltyservice123}
+        driver-class-name: org.postgresql.Driver
+      
+      jpa:
+        database-platform: org.hibernate.dialect.PostgreSQLDialect
+        hibernate:
+          ddl-auto: update
+        properties:
+          hibernate:
+            format_sql: true
+            show_sql: false
+        open-in-view: false
+        show-sql: false
+      
+      # Jackson configuration for date/time serialization
+      jackson:
+        date-format: yyyy-MM-dd HH:mm:ss
+        serialization:
+          write-dates-as-timestamps: false
+      
+      # Redis Configuration (optional for caching)
+      data:
+        redis:
+          host: ${SPRING_DATA_REDIS_HOST:redis-service.data.svc.cluster.local}
+          port: ${SPRING_DATA_REDIS_PORT:6379}
+          timeout: 2000ms
+          database: ${SPRING_DATA_REDIS_DATABASE:3}
+          lettuce:
+            pool:
+              max-active: 8
+              max-idle: 8
+              min-idle: 0
+              max-wait: -1ms
+      
+      # Kafka Configuration
+      kafka:
+        bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.add.type.headers: false
+        consumer:
+          group-id: loyalty-service-group
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+    
+    # Eureka Configuration
+    eureka:
+      instance:
+        preferIpAddress: true
+        instanceId: ${spring.application.name}:${server.port}
+        hostname: loyalty-service
+        metadataMap:
+          instanceId: ${spring.application.name}:${server.port}
+      client:
+        registryFetchIntervalSeconds: 5
+        instanceInfoReplicationIntervalSeconds: 5
+        initialInstanceInfoReplicationIntervalSeconds: 5
+        eurekaServiceUrlPollIntervalSeconds: 5
+        registerWithEureka: true
+        fetchRegistry: true
+        serviceUrl:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
+    
+    # Management and Monitoring
+    management:
+      health:
+        circuitbreakers:
+          enabled: true
+        redis:
+          enabled: true
+        db:
+          enabled: true
+      endpoint:
+        health:
+          show-details: "ALWAYS"
+          show-components: "ALWAYS"
+        metrics:
+          enabled: true
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+          cors:
+            allowed-origins: "*"
+            allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+      metrics:
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+          percentiles:
+            http.server.requests: 0.5, 0.95, 0.99
+        tags:
+          application: ${spring.application.name}
+    
+    # Logging Configuration
+    logging:
+      level:
+        com.Ecommerce.Loyalty_Service: INFO
+        org.springframework.web: INFO
+        org.hibernate.SQL: WARN
+        org.hibernate.type.descriptor.sql.BasicBinder: WARN
+        org.springframework.kafka: DEBUG
+        org.apache.kafka: WARN
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    
+    # SpringDoc Configuration
+    springdoc:
+      api-docs:
+        enabled: true
+        path: /api-docs
+      swagger-ui:
+        enabled: true
+        path: /swagger-ui.html
+        operations-sorter: method
+        tags-sorter: alpha
+        doc-expansion: none
+    
+    # Loyalty Service Specific Configuration
+    loyalty:
+      tier:
+        # Tier thresholds (points required to reach each tier)
+        bronze-threshold: 0       # 0-499 points
+        silver-threshold: 500     # 500-1999 points
+        gold-threshold: 2000      # 2000-4999 points
+        platinum-threshold: 5000  # 5000-9999 points
+        diamond-threshold: 10000  # 10,000+ points
+
+      # Point earning rates
+      points:
+        order-rate: 1.0           # Points per dollar spent
+        review-points: 10         # Points for product review
+        signup-bonus: 100         # Welcome bonus points
+        first-order-bonus: 100    # First order bonus points
+        referral-bonus: 200       # Referral bonus points
+
+      # Coupon configuration
+      coupons:
+        default-validity-months: 3  # Default coupon validity
+        max-stacking: 3            # Maximum coupons that can be stacked
+
+      # Factory settings
+      factory:
+        create-default-data: true
+        create-test-data: false

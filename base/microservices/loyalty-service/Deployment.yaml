@@ -1,0 +1,88 @@
+# base/microservices/loyalty-service/Deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loyalty-service
+  namespace: microservices
+  labels:
+    app: loyalty-service
+    component: microservices
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: loyalty-service
+  template:
+    metadata:
+      labels:
+        app: loyalty-service
+        component: microservices
+    spec:
+      containers:
+        - name: loyalty-service
+          image: yahyazakaria123/ecommerce-app-loyalty-service:latest
+          ports:
+            - containerPort: 8084
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,kafka"
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server.infrastructure.svc.cluster.local:8888"
+            - name: SPRING_APPLICATION_NAME
+              value: "loyalty-service"
+            - name: SERVER_PORT
+              value: "8084"
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              value: "/api/loyalty"
+            # Database configuration
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://loyalty-postgres-service.data.svc.cluster.local:5432/loyalty-service"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: loyalty-service-secrets
+                  key: db-username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: loyalty-service-secrets
+                  key: db-password
+            # Redis configuration for caching (optional)
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis-service.data.svc.cluster.local"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_DATABASE
+              value: "3"
+            # Kafka configuration
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /api/loyalty/actuator/health
+              port: 8084
+            initialDelaySeconds: 90
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/loyalty/actuator/health/readiness
+              port: 8084
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /api/loyalty/actuator/health
+              port: 8084
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 18

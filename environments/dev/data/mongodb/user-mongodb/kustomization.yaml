@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: data
 
 resources:
-  - ../../../../base/data/user-mongodb
+  - ../../../../../base/data/mongodb/user-mongodb
 
 
 configMapGenerator:

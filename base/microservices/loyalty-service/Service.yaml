@@ -1,0 +1,18 @@
+# base/microservices/loyalty-service/Service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: loyalty-service
+  namespace: microservices
+  labels:
+    app: loyalty-service
+    component: microservices
+spec:
+  selector:
+    app: loyalty-service
+  ports:
+    - name: http
+      port: 8084
+      targetPort: 8084
+      protocol: TCP
+  type: ClusterIP
