@@ -245,16 +245,3 @@ spec:
                 sleep 3
               done
               echo "Config Server is ready!"
-
-        # Wait for Logstash
-        - name: wait-for-logstash
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Waiting for Logstash..."
-              until nc -z logstash-service.logging.svc.cluster.local 5000; do 
-                echo "Logstash not ready, waiting..."
-                sleep 3
-              done
-              echo "Logstash is ready!"
