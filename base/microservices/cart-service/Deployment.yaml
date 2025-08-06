@@ -26,6 +26,8 @@ spec:
             - containerPort: 8082
               name: http
           env:
+            - name: JAVA_OPTS
+              value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
             # Application Configuration
             - name: SPRING_PROFILES_ACTIVE
               value: "docker,kafka"
@@ -84,39 +86,41 @@ spec:
 
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
               memory: "1Gi"
               cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
 
           # Health Checks
           livenessProbe:
             httpGet:
               path: /api/carts/actuator/health
               port: 8082
-            initialDelaySeconds: 120
-            periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 3
+            initialDelaySeconds: 180  # Increased from 120
+            periodSeconds: 45         # Increased from 30
+            timeoutSeconds: 15        # Increased from 10
+            failureThreshold: 5       # Increased from 3
 
           readinessProbe:
-            httpGet:
-              path: /api/carts/actuator/health/readiness
-              port: 8082
-            initialDelaySeconds: 90
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 5
+              httpGet:
+                path: /api/carts/actuator/health/readiness
+                port: 8082
+              initialDelaySeconds: 120  # Increased from 90
+              periodSeconds: 15         # Increased from 10
+              timeoutSeconds: 10        # Increased from 5
+              failureThreshold: 8       # Increased from 5
 
           startupProbe:
-            httpGet:
-              path: /api/carts/actuator/health
-              port: 8082
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            failureThreshold: 20
-            timeoutSeconds: 5
+              httpGet:
+                path: /api/carts/actuator/health
+                port: 8082
+              initialDelaySeconds: 60   # Increased from 30
+              periodSeconds: 15         # Increased from 10
+              timeoutSeconds: 10        # Increased from 5
+              failureThreshold: 30      # Increased from 20
+
+
 
           volumeMounts:
             - name: config-volume

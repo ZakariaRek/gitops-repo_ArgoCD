@@ -1,22 +1,33 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: user-service-config
+  name: user-service-config-fixed
   namespace: microservices
-  labels:
-    app: user-service
-    component: microservices
 data:
   application.yml: |
     spring:
       profiles:
         active: kafka,docker
-      config:
-        import: optional:configserver:http://config-server.infrastructure.svc.cluster.local:8888
       application:
         name: user-service
-      zipkin:
-        enabled: false
+      
+      # Kafka Configuration - FIXED
+      kafka:
+        bootstrap-servers: kafka-service.data.svc.cluster.local:9092
+        producer:
+          bootstrap-servers: kafka-service.data.svc.cluster.local:9092
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.add.type.headers: false
+        consumer:
+          bootstrap-servers: kafka-service.data.svc.cluster.local:9092
+          group-id: user-service-group
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
       
       # MongoDB Configuration
       data:
@@ -27,226 +38,41 @@ data:
           username: ${SPRING_DATA_MONGODB_USERNAME}
           password: ${SPRING_DATA_MONGODB_PASSWORD}
           authentication-database: admin
-      
-      # Kafka Configuration  
-      kafka:
-        bootstrap-servers: kafka-service.data.svc.cluster.local:9092
-        producer:
-          key-serializer: org.apache.kafka.common.serialization.StringSerializer
-          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-          properties:
-            spring.json.add.type.headers: false
-        consumer:
-          group-id: user-service-group
-          auto-offset-reset: earliest
-          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-          properties:
-            spring.json.trusted.packages: "*"
-      
-      # OAuth2 Configuration
-      security:
-        oauth2:
-          client:
-            registration:
-              google:
-                client-id: ${GOOGLE_CLIENT_ID}
-                client-secret: ${GOOGLE_CLIENT_SECRET}
-                scope:
-                  - email
-                  - profile
-                redirect-uri: "http://localhost:8081/api/users/oauth2/callback/{registrationId}"
-                authorization-grant-type: authorization_code
-            provider:
-              google:
-                authorization-uri: https://accounts.google.com/o/oauth2/auth
-                token-uri: https://www.googleapis.com/oauth2/v4/token
-                user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
-                user-name-attribute: sub
-
+    
     # Server Configuration
     server:
       port: 8081
       servlet:
         context-path: /api/users
-
-    # OAuth2 App Configuration
-    app:
-      oauth2:
-        authorizedRedirectUris: "http://localhost:3000/auth/oauth2/redirect"
-
-    # User Service Specific Configuration
-    User-service:
-      app:
-        jwtCookieName: user-service
-        jwtSecret: ${JWT_SECRET}
-        jwtExpirationMs: 86400000
-
+    
     # Eureka Service Discovery
     eureka:
       instance:
         preferIpAddress: true
         instanceId: ${spring.application.name}:${server.port}
         hostname: ${HOSTNAME:user-service}
-        metadataMap:
-          instanceId: ${spring.application.name}:${server.port}
       client:
         registerWithEureka: true
         fetchRegistry: true
         serviceUrl:
           defaultZone: http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/
-
-    # ELK Configuration
-    logstash:
-      host: ${LOGSTASH_HOST:logstash-service.logging.svc.cluster.local}
-      port: ${LOGSTASH_PORT:5000}
-
+    
     # Management Endpoints
     management:
       endpoints:
         web:
           exposure:
             include: "*"
-          base-path: /actuator
       endpoint:
-        env:
-          show-values: ALWAYS
         health:
           show-details: always
-
+    
     # Logging Configuration
     logging:
       level:
-        org.springframework.cloud.gateway: DEBUG
-        org.springframework.web: DEBUG
-        com.Ecommerce.User_Service: DEBUG
-        org.springframework.data.redis: DEBUG
-        org.springframework.web.cors: DEBUG
-        io.github.resilience4j: DEBUG
-        org.springframework.boot.autoconfigure: DEBUG
-        com.Ecommerce: DEBUG
-        org.springframework.kafka: DEBUG
+        org.springframework.kafka: INFO  # Reduced from DEBUG
         org.apache.kafka: WARN
-        org.springframework.data.mongodb: DEBUG
+        com.Ecommerce.User_Service: DEBUG
+        org.springframework.data.mongodb: INFO  # Reduced from DEBUG
       pattern:
         console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-
-  bootstrap.yml: |
-    spring:
-      application:
-        name: user-service
-      cloud:
-        config:
-          uri: http://config-server.infrastructure.svc.cluster.local:8888
-      profiles:
-        active: docker,kafka
-
-  logback-spring.xml: |
-    <?xml version="1.0" encoding="UTF-8"?>
-    <configuration>
-        <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
-
-        <springProperty scope="context" name="application.name" source="spring.application.name" defaultValue="User-Service"/>
-
-        <!-- Console appender for local debugging -->
-        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder>
-                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [${application.name}] %logger{36} - %msg%n</pattern>
-                <charset>UTF-8</charset>
-            </encoder>
-        </appender>
-
-        <!-- Kafka appender for sending logs to ELK -->
-        <appender name="KAFKA" class="com.github.danielwegener.logback.kafka.KafkaAppender">
-            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-                <includeContext>true</includeContext>
-                <includeMdc>true</includeMdc>
-                <includeStackTrace>true</includeStackTrace>
-                <customFields>{"service_name":"${application.name}","environment":"kubernetes"}</customFields>
-                <fieldNames>
-                    <timestamp>@timestamp</timestamp>
-                    <version>[ignore]</version>
-                    <levelValue>[ignore]</levelValue>
-                </fieldNames>
-            </encoder>
-
-            <!-- Kafka settings -->
-            <topic>app-logs</topic>
-            <keyingStrategy class="com.github.danielwegener.logback.kafka.keying.NoKeyKeyingStrategy" />
-            <deliveryStrategy class="com.github.danielwegener.logback.kafka.delivery.AsynchronousDeliveryStrategy" />
-
-            <!-- Producer configuration -->
-            <producerConfig>bootstrap.servers=kafka-service.data.svc.cluster.local:9092</producerConfig>
-            <producerConfig>acks=1</producerConfig>
-            <producerConfig>retries=3</producerConfig>
-            <producerConfig>linger.ms=1000</producerConfig>
-            <producerConfig>max.block.ms=5000</producerConfig>
-
-            <!-- Fallback to console if Kafka fails -->
-            <appender-ref ref="CONSOLE" />
-        </appender>
-
-        <!-- Profile-specific configurations -->
-        <springProfile name="kafka">
-            <root level="INFO">
-                <appender-ref ref="CONSOLE" />
-                <appender-ref ref="KAFKA" />
-            </root>
-
-            <!-- User_Service Service specific logging -->
-            <logger name="com.Ecommerce.User_Service" level="DEBUG" additivity="false">
-                <appender-ref ref="CONSOLE" />
-                <appender-ref ref="KAFKA" />
-            </logger>
-
-            <!-- Spring framework logs -->
-            <logger name="org.springframework.web" level="INFO" additivity="false">
-                <appender-ref ref="CONSOLE" />
-                <appender-ref ref="KAFKA" />
-            </logger>
-
-            <!-- Kafka-related logs (reduce noise) -->
-            <logger name="org.apache.kafka" level="WARN" additivity="false">
-                <appender-ref ref="CONSOLE" />
-            </logger>
-
-            <logger name="org.springframework.kafka" level="INFO" additivity="false">
-                <appender-ref ref="CONSOLE" />
-            </logger>
-        </springProfile>
-
-        <!-- Default profile (no Kafka) -->
-        <springProfile name="!kafka">
-            <root level="INFO">
-                <appender-ref ref="CONSOLE" />
-            </root>
-        </springProfile>
-    </configuration>
-
-  # Environment-specific overrides
-  .env: |
-    # Service configuration
-    PORT=8081
-    SPRING_PROFILES_ACTIVE=docker,kafka
-    
-    # Database
-    MONGODB_HOST=user-mongodb-headless.data.svc.cluster.local
-    MONGODB_PORT=27017
-    MONGODB_DATABASE=User-service
-    
-    # Kafka
-    KAFKA_BOOTSTRAP_SERVERS=kafka-service.data.svc.cluster.local:9092
-    
-    # Service Discovery
-    EUREKA_DEFAULT_ZONE=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/
-    
-    # Config Server
-    CONFIG_SERVER_URI=http://config-server.infrastructure.svc.cluster.local:8888
-    
-    # Monitoring
-    ENABLE_METRICS=true
-    ENABLE_HEALTH_CHECK=true
-    
-    # Logging
-    LOGSTASH_HOST=logstash-service.logging.svc.cluster.local
-    LOGSTASH_PORT=5000
