@@ -7,17 +7,16 @@ resources:
   - ConfigMap.yaml
   - Secret.yaml
 
-labels:
-  - pairs:
-      app: user-service
-      component: microservices
+commonLabels:
+  app: user-service
+  component: microservices
+
+namespace: microservices
 
 images:
   - name: yahyazakaria123/ecommerce-app-user-service
     newTag: latest
 
-namespace: microservices
-
 replicas:
   - name: user-service
-    count: 2
+    count: 1

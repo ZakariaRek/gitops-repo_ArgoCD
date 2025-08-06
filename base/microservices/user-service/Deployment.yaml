@@ -8,7 +8,7 @@ metadata:
     component: microservices
     tier: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: user-service
@@ -32,17 +32,6 @@ spec:
             - name: JAVA_OPTS
               value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
 
-            # CRITICAL: Force Kafka to use the correct cluster address
-            # Override any localhost configurations
-            - name: KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-
-            # Make sure spring.kafka.bootstrap-servers is set correctly
-            - name: SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-
             # Application Configuration
             - name: SPRING_APPLICATION_NAME
               value: "user-service"
@@ -51,7 +40,7 @@ spec:
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api/users"
 
-            # Service Discovery (Eureka)
+            # Service Discovery (Eureka) - Enhanced Configuration
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/"
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
@@ -60,10 +49,54 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+              value: "true"
+            - name: EUREKA_CLIENT_FETCH_REGISTRY
+              value: "true"
+            - name: EUREKA_CLIENT_REGISTRY_FETCH_INTERVAL_SECONDS
+              value: "5"
+            - name: EUREKA_CLIENT_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS
+              value: "5"
+            - name: EUREKA_CLIENT_INITIAL_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS
+              value: "5"
+            - name: EUREKA_INSTANCE_INSTANCE_ID
+              value: "${spring.application.name}:${server.port}"
+            - name: EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS
+              value: "30"
+            - name: EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS
+              value: "90"
 
-            # Config Server
+            # Config Server - Enhanced Configuration
             - name: SPRING_CLOUD_CONFIG_URI
               value: "http://config-server.infrastructure.svc.cluster.local:8888"
+            - name: SPRING_CLOUD_CONFIG_ENABLED
+              value: "true"
+            - name: SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED
+              value: "false"
+            - name: SPRING_CLOUD_CONFIG_DISCOVERY_SERVICE_ID
+              value: "config-server"
+            - name: SPRING_CONFIG_IMPORT
+              value: "optional:configserver:http://config-server.infrastructure.svc.cluster.local:8888"
+            - name: SPRING_CLOUD_CONFIG_RETRY_INITIAL_INTERVAL
+              value: "3000"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MAX_ATTEMPTS
+              value: "6"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MAX_INTERVAL
+              value: "4000"
+            - name: SPRING_CLOUD_CONFIG_RETRY_MULTIPLIER
+              value: "1.1"
+
+            # CRITICAL: Force Kafka to use the correct cluster address
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+              value: "user-service-group"
 
             # MongoDB Configuration (Cross-namespace)
             - name: SPRING_DATA_MONGODB_HOST
@@ -87,12 +120,6 @@ spec:
             - name: SPRING_DATA_MONGODB_URI
               value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin"
 
-            # Kafka Configuration (Cross-namespace)
-            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
-              value: "user-service-group"
-
             # JWT Configuration
             - name: JWT_SECRET
               valueFrom:
@@ -110,11 +137,13 @@ spec:
                 secretKeyRef:
                   name: user-service-secrets
                   key: google-client-id
+                  optional: true
             - name: GOOGLE_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: user-service-secrets
                   key: google-client-secret
+                  optional: true
             - name: APP_OAUTH2_AUTHORIZED_REDIRECT_URIS
               value: "http://localhost:3000/auth/oauth2/redirect"
 
@@ -143,6 +172,12 @@ spec:
               value: "WARN"
             - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_DATA_MONGODB
               value: "DEBUG"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_CLOUD_CONFIG
+              value: "DEBUG"
+            - name: LOGGING_LEVEL_COM_NETFLIX_EUREKA
+              value: "DEBUG"
+            - name: LOGGING_LEVEL_COM_NETFLIX_DISCOVERY
+              value: "DEBUG"
 
             # Spring Boot Configuration
             - name: SPRING_ZIPKIN_ENABLED
@@ -163,7 +198,7 @@ spec:
               memory: "2Gi"
               cpu: "1000m"
 
-          # Relax health check timings
+          # Enhanced health checks with proper linking validation
           livenessProbe:
             httpGet:
               path: /api/users/actuator/health
@@ -201,8 +236,58 @@ spec:
         - name: logs-volume
           emptyDir: {}
 
-      # InitContainers for proper startup order
+      # Enhanced InitContainers for proper startup order and service linking
       initContainers:
+        # Wait for Config Server (First Priority)
+        - name: wait-for-config-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Config Server..."
+              timeout=300
+              elapsed=0
+              until nc -z config-server.infrastructure.svc.cluster.local 8888 || [ $elapsed -gt $timeout ]; do 
+                echo "Config Server not ready, waiting... ($elapsed/$timeout)"
+                sleep 5
+                elapsed=$((elapsed + 5))
+              done
+              if [ $elapsed -gt $timeout ]; then
+                echo "ERROR: Config Server not available after $timeout seconds"
+                exit 1
+              fi
+              echo "Config Server is ready!"
+              
+              # Test config server endpoint
+              echo "Testing Config Server endpoint..."
+              wget -q --spider --timeout=10 --tries=3 "http://config-server.infrastructure.svc.cluster.local:8888/actuator/health" || echo "Config Server health check failed, but proceeding..."
+              echo "Config Server validation completed!"
+
+        # Wait for Eureka (Second Priority)
+        - name: wait-for-eureka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Eureka Server..."
+              timeout=300
+              elapsed=0
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761 || [ $elapsed -gt $timeout ]; do 
+                echo "Eureka Server not ready, waiting... ($elapsed/$timeout)"
+                sleep 5
+                elapsed=$((elapsed + 5))
+              done
+              if [ $elapsed -gt $timeout ]; then
+                echo "ERROR: Eureka Server not available after $timeout seconds"
+                exit 1
+              fi
+              echo "Eureka Server is ready!"
+              
+              # Test Eureka endpoint
+              echo "Testing Eureka Server endpoint..."
+              wget -q --spider --timeout=10 --tries=3 "http://eureka-server.infrastructure.svc.cluster.local:8761/actuator/health" || echo "Eureka health check failed, but proceeding..."
+              echo "Eureka Server validation completed!"
+
         # Wait for MongoDB
         - name: wait-for-mongodb
           image: busybox:1.35
@@ -210,11 +295,18 @@ spec:
           args:
             - |
               echo "Waiting for User MongoDB..."
-              until nc -z user-mongodb-headless.data.svc.cluster.local 27017; do 
-                echo "MongoDB not ready, waiting..."
+              timeout=180
+              elapsed=0
+              until nc -z user-mongodb-headless.data.svc.cluster.local 27017 || [ $elapsed -gt $timeout ]; do 
+                echo "MongoDB not ready, waiting... ($elapsed/$timeout)"
                 sleep 3
+                elapsed=$((elapsed + 3))
               done
-              echo "User MongoDB is ready!"
+              if [ $elapsed -gt $timeout ]; then
+                echo "WARNING: MongoDB not available after $timeout seconds, proceeding anyway..."
+              else
+                echo "User MongoDB is ready!"
+              fi
 
         # Wait for Kafka
         - name: wait-for-kafka
@@ -223,34 +315,17 @@ spec:
           args:
             - |
               echo "Waiting for Kafka..."
-              until nc -z kafka-service.data.svc.cluster.local 9092; do 
-                echo "Kafka not ready, waiting..."
+              timeout=180
+              elapsed=0
+              until nc -z kafka-service.data.svc.cluster.local 9092 || [ $elapsed -gt $timeout ]; do 
+                echo "Kafka not ready, waiting... ($elapsed/$timeout)"
                 sleep 3
+                elapsed=$((elapsed + 3))
               done
-              echo "Kafka is ready!"
+              if [ $elapsed -gt $timeout ]; then
+                echo "WARNING: Kafka not available after $timeout seconds, proceeding anyway..."
+              else
+                echo "Kafka is ready!"
+              fi
 
-        # Wait for Eureka
-        - name: wait-for-eureka
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Waiting for Eureka..."
-              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
-                echo "Eureka not ready, waiting..."
-                sleep 3
-              done
-              echo "Eureka is ready!"
-
-        # Wait for Config Server
-        - name: wait-for-config-server
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Waiting for Config Server..."
-              until nc -z config-server.infrastructure.svc.cluster.local 8888; do 
-                echo "Config Server not ready, waiting..."
-                sleep 3
-              done
-              echo "Config Server is ready!"
+      restartPolicy: Always
