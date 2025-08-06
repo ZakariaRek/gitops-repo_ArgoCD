@@ -3,23 +3,28 @@ kind: Kustomization
 
 metadata:
   name: user-mongodb
-  labels:
-    app: user-mongodb
-    component: database
-    service: user-service
+  namespace: data
 
 resources:
-  - deployment.yaml
+  - statefulset.yaml
   - service.yaml
   - configmap.yaml
   - secret.yaml
-  - pvc.yaml
 
-commonLabels:
-  app: user-mongodb
-  component: database
-  service: user-service
+labels:
+  - pairs:
+      app: user-mongodb
+      component: data
+      service: user-service
+      tier: database
+      version: "7.0"
 
 images:
   - name: mongo
     newTag: "7.0"
+
+namespace: data
+
+replicas:
+  - name: user-mongodb
+    count: 2

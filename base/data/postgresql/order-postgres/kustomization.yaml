@@ -7,7 +7,7 @@ metadata:
 
 resources:    # Optional: Remove if using dynamic provisioning
   - Configmap.yaml
-  - StatefulSet.yaml  # Changed from Deployment.yaml
+  - StatefulSet.yaml  # Changed from Deployment
   - Secret.yaml
   - Service.yaml
 

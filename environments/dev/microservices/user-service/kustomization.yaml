@@ -7,86 +7,108 @@ metadata:
 
 # Reference the base user-service configuration
 resources:
-- ../../../../base/microservices/user-service
+  - ../../../../base/microservices/user-service
 
 # Use microservices namespace
 namespace: microservices
 
-# Add environment-specific labels - FIXED: replaced commonLabels with labels
+# Add environment-specific labels
 labels:
-- pairs:
-    environment: dev
-    tier: development
+  - pairs:
+      environment: dev
+      tier: development
 
 # Use development image tag
 images:
-- name: yahyazakaria123/ecommerce-app-user-service
-  newTag: latest  # You can change to dev-latest when available
+  - name: yahyazakaria123/ecommerce-app-user-service
+    newTag: latest
 
 # Reduce replicas for dev (save resources)
 replicas:
-- name: user-service
-  count: 1
+  - name: user-service
+    count: 1
 
 # Generate additional ConfigMap with dev-specific settings
 configMapGenerator:
-- name: user-service-dev-config
-  literals:
-  - LOG_LEVEL=DEBUG
-  - SPRING_PROFILES_ACTIVE=dev,docker,kafka
-  - ENABLE_REQUEST_LOGGING=true
-  - JWT_EXPIRATION=86400000
+  - name: user-service-dev-config
+    literals:
+      - LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=dev,docker,kafka
+      - ENABLE_REQUEST_LOGGING=true
+      - MONGODB_DATABASE=User-service-dev
+      - EUREKA_INSTANCE_HOSTNAME=localhost
 
-# Use the new patches syntax for better compatibility
+# Use patches for dev-specific configurations
 patches:
-- patch: |-
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
+  # Patch deployment for dev-specific environment variables and resources
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: user-service
+        namespace: microservices
+      spec:
+        template:
+          spec:
+            containers:
+              - name: user-service
+                env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: "dev,docker,kafka"
+                  - name: LOGGING_LEVEL_ROOT
+                    value: "DEBUG"
+                  - name: SPRING_DATA_MONGODB_DATABASE
+                    value: "User-service-dev"
+                  - name: EUREKA_INSTANCE_HOSTNAME
+                    value: "localhost"
+                  - name: APP_OAUTH2_AUTHORIZED_REDIRECT_URIS
+                    value: "http://localhost:3000/auth/oauth2/redirect"
+                # Dev-specific resource limits
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "100m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+    target:
+      kind: Deployment
       name: user-service
-      namespace: microservices
-    spec:
-      template:
-        spec:
-          containers:
-          - name: user-service
-            env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "dev,docker,kafka"
-            - name: LOG_LEVEL
-              value: "DEBUG"
-            - name: ENABLE_REQUEST_LOGGING
-              value: "true"
-            # Dev-specific database configuration
-            - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/userdb_dev"
-            - name: SPRING_DATA_REDIS_DATABASE
-              value: "1"
-            resources:
-              requests:
-                memory: "256Mi"
-                cpu: "100m"
-              limits:
-                memory: "512Mi"
-                cpu: "250m"
-  target:
-    kind: Deployment
-    name: user-service
 
-# Patch the service to use NodePort for easy access in dev
-- patch: |-
-    apiVersion: v1
-    kind: Service
-    metadata:
+  # Patch the service to use NodePort for easy access in dev
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: user-service
+        namespace: microservices
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 8081
+            targetPort: 8081
+            nodePort: 30081
+            protocol: TCP
+    target:
+      kind: Service
       name: user-service
-      namespace: microservices
-    spec:
-      type: NodePort
-      ports:
-      - name: http
-        port: 8080
-        targetPort: 8080
-        nodePort: 30080
-  target:
-    kind: Service
-    name: user-service
+
+  # Update secrets for dev environment
+  - patch: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: user-service-secrets
+        namespace: microservices
+      data:
+        # Dev-specific MongoDB credentials
+        mongodb-username: dXNlcnNlcnZpY2VfZGV2  # userservice_dev
+        mongodb-password: dXNlcnNlcnZpY2VfZGV2XzEyMw==  # userservice_dev_123
+        # Keep placeholder OAuth2 and JWT secrets for dev (replace with actual values when deploying)
+        google-client-id: eW91ci1nb29nbGUtY2xpZW50LWlkLWhlcmU=  # your-google-client-id-here
+        google-client-secret: eW91ci1nb29nbGUtY2xpZW50LXNlY3JldC1oZXJl  # your-google-client-secret-here
+        jwt-secret: ZGV2LWp3dC1zZWNyZXQtZm9yLXRlc3Rpbmc=  # dev-jwt-secret-for-testing (simpler for dev)
+    target:
+      kind: Secret
+      name: user-service-secrets

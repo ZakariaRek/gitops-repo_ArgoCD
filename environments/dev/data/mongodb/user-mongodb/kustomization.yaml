@@ -1,26 +1,87 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: data
+metadata:
+  name: user-mongodb-dev
+  namespace: data
 
+# Reference the base user-mongodb configuration
 resources:
   - ../../../../../base/data/mongodb/user-mongodb
 
+# Use data namespace
+namespace: data
 
-configMapGenerator:
-  - name: user-mongodb-config
-    behavior: merge
-    literals:
-      - environment=development
-      - log-level=debug
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
 
-secretGenerator:
-  - name: user-mongodb-secret
-    behavior: replace
-    literals:
-      - username=devuser
-      - password=devpass123
-
+# Use development image tag
 images:
   - name: mongo
     newTag: "7.0"
+
+# Reduce replicas for dev (save resources)
+replicas:
+  - name: user-mongodb
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: user-mongodb-dev-config
+    literals:
+      - MONGO_LOG_LEVEL=debug
+      - MONGO_SLOW_OP_THRESHOLD=100
+      - ENVIRONMENT=development
+
+# Use patches to modify existing resources
+patches:
+  # Patch the secret with dev credentials
+  - patch: |-
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: user-mongodb-secret
+      data:
+        username: dXNlcnNlcnZpY2VfZGV2  # userservice_dev (base64)
+        password: dXNlcnNlcnZpY2VfZGV2XzEyMw==  # userservice_dev_123 (base64)
+    target:
+      kind: Secret
+      name: user-mongodb-secret
+
+  # Patch StatefulSet for dev resources and single replica
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: user-mongodb
+      spec:
+        template:
+          spec:
+            containers:
+              - name: mongodb
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "100m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+    target:
+      kind: StatefulSet
+      name: user-mongodb
+
+  # Update ConfigMap for dev database
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: user-mongodb-config
+      data:
+        database-name: "userdb_dev"
+        mongodb-url: "mongodb://user-mongodb-headless.data.svc.cluster.local:27017/userdb_dev"
+    target:
+      kind: ConfigMap
+      name: user-mongodb-config

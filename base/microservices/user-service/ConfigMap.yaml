@@ -1,278 +1,252 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: payment-service-config
+  name: user-service-config
   namespace: microservices
   labels:
-    app: payment-service
+    app: user-service
     component: microservices
 data:
   application.yml: |
     spring:
+      profiles:
+        active: kafka,docker
+      config:
+        import: optional:configserver:http://config-server.infrastructure.svc.cluster.local:8888
       application:
         name: user-service
+      zipkin:
+        enabled: false
+      
+      # MongoDB Configuration
       data:
         mongodb:
-          uri: mongodb://user-mongodb-service:27017/userdb
-          database: userdb
-    
+          database: User-service
+          host: user-mongodb-headless.data.svc.cluster.local
+          port: 27017
+          username: ${SPRING_DATA_MONGODB_USERNAME}
+          password: ${SPRING_DATA_MONGODB_PASSWORD}
+          authentication-database: admin
+      
+      # Kafka Configuration  
+      kafka:
+        bootstrap-servers: kafka-service.data.svc.cluster.local:9092
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.add.type.headers: false
+        consumer:
+          group-id: user-service-group
+          auto-offset-reset: earliest
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+          properties:
+            spring.json.trusted.packages: "*"
+      
+      # OAuth2 Configuration
+      security:
+        oauth2:
+          client:
+            registration:
+              google:
+                client-id: ${GOOGLE_CLIENT_ID}
+                client-secret: ${GOOGLE_CLIENT_SECRET}
+                scope:
+                  - email
+                  - profile
+                redirect-uri: "http://localhost:8081/api/users/oauth2/callback/{registrationId}"
+                authorization-grant-type: authorization_code
+            provider:
+              google:
+                authorization-uri: https://accounts.google.com/o/oauth2/auth
+                token-uri: https://www.googleapis.com/oauth2/v4/token
+                user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+                user-name-attribute: sub
+
+    # Server Configuration
     server:
-      port: 8080
-    
+      port: 8081
+      servlet:
+        context-path: /api/users
+
+    # OAuth2 App Configuration
+    app:
+      oauth2:
+        authorizedRedirectUris: "http://localhost:3000/auth/oauth2/redirect"
+
+    # User Service Specific Configuration
+    User-service:
+      app:
+        jwtCookieName: user-service
+        jwtSecret: ${JWT_SECRET}
+        jwtExpirationMs: 86400000
+
+    # Eureka Service Discovery
     eureka:
+      instance:
+        preferIpAddress: true
+        instanceId: ${spring.application.name}:${server.port}
+        hostname: ${HOSTNAME:user-service}
+        metadataMap:
+          instanceId: ${spring.application.name}:${server.port}
       client:
-        service-url:
-          defaultZone: http://eureka-server:8761/eureka/
-    
+        registerWithEureka: true
+        fetchRegistry: true
+        serviceUrl:
+          defaultZone: http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/
+
+    # ELK Configuration
+    logstash:
+      host: ${LOGSTASH_HOST:logstash-service.logging.svc.cluster.local}
+      port: ${LOGSTASH_PORT:5000}
+
+    # Management Endpoints
     management:
       endpoints:
-        web:  
+        web:
           exposure:
-            include: health,info,metrics
+            include: "*"
+          base-path: /actuator
       endpoint:
+        env:
+          show-values: ALWAYS
         health:
           show-details: always
 
-    # MongoDB connection string
-    mongodb-uri: "mongodb://user-mongodb-service:27017/userdb"
-    database-name: "userdb"
-  config.yaml: |
-    # Payment Service Configuration
-    server:
-      port: 8084
-      host: "0.0.0.0"
-      read_timeout: 30s
-      write_timeout: 30s
-      idle_timeout: 60s
-      shutdown_timeout: 30s
-    
-    # Service Information
-    service:
-      name: "payment-service"
-      version: "1.0.0"
-      environment: "docker"
-    
-    # Database Configuration (PostgreSQL)
-    database:
-      host: "postgres-service.data.svc.cluster.local"
-      port: 5432
-      name: "paymentdb"
-      username: "paymentservice"  # Will be overridden by secret
-      password: "paymentservice123"  # Will be overridden by secret
-      sslmode: "disable"
-      max_open_conns: 25
-      max_idle_conns: 5
-      conn_max_lifetime: "300s"
-      conn_max_idle_time: "60s"
-    
-    # Redis Configuration for caching and rate limiting
-    redis:
-      host: "redis-service.data.svc.cluster.local"
-      port: 6379
-      password: ""
-      database: 4
-      pool_size: 10
-      min_idle_conns: 5
-      dial_timeout: "5s"
-      read_timeout: "3s"
-      write_timeout: "3s"
-      pool_timeout: "4s"
-      idle_timeout: "300s"
-    
-    # Kafka Configuration
-    kafka:
-      brokers:
-        - "kafka-service.data.svc.cluster.local:9092"
-      consumer:
-        group_id: "payment-service-group"
-        auto_offset_reset: "earliest"
-        enable_auto_commit: true
-        auto_commit_interval: "1s"
-      producer:
-        acks: "all"
-        retries: 3
-        batch_size: 16384
-        linger_ms: 5
-        buffer_memory: 33554432
-      topics:
-        payment_request: "payment.request"
-        payment_response: "payment.response"
-        payment_confirmed: "payment-confirmed"
-        payment_failed: "payment-failed"
-        payment_refund: "payment-refund"
-    
-    # Service Discovery (Eureka equivalent for Go)
-    discovery:
-      enabled: true
-      eureka_url: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-      instance_id: "payment-service:8084"
-      heartbeat_interval: "30s"
-      health_check_url: "/health"
-    
-    # Payment Provider Configuration
-    payment:
-      providers:
-        stripe:
-          enabled: true
-          api_version: "2023-10-16"
-          webhook_endpoint_secret: ""  # Will be set from secret
-        paypal:
-          enabled: false
-          sandbox: true
-        square:
-          enabled: false
-          sandbox: true
-      
-      # Payment processing settings
-      processing:
-        timeout: "30s"
-        retry_attempts: 3
-        retry_delay: "2s"
-        max_amount: 10000.00  # $10,000 max transaction
-        min_amount: 0.50      # $0.50 min transaction
-        currency: "USD"
-      
-      # Security settings
-      security:
-        require_cvv: true
-        require_postal_code: true
-        fraud_detection: true
-        risk_threshold: 75  # Percentage
-    
-    # Rate Limiting Configuration
-    rate_limiting:
-      enabled: true
-      default:
-        requests_per_minute: 60
-        requests_per_hour: 1000
-      payment_endpoints:
-        requests_per_minute: 3      # Very strict for payment operations
-        requests_per_5_minutes: 15
-        burst_capacity: 5
-      admin_endpoints:
-        requests_per_minute: 20
-        requests_per_hour: 200
-    
-    # Circuit Breaker Configuration
-    circuit_breaker:
-      enabled: true
-      failure_threshold: 30      # 30% failure rate opens circuit
-      success_threshold: 3       # 3 consecutive successes closes circuit
-      timeout: "60s"             # Circuit stays open for 60s
-      max_requests: 3            # Max requests in half-open state
-    
-    # Health Check Configuration
-    health:
-      enabled: true
-      endpoint: "/health"
-      detailed_endpoint: "/health/detailed"
-      check_interval: "30s"
-      checks:
-        database: true
-        redis: true
-        kafka: true
-        payment_providers: true
-    
-    # Metrics and Monitoring
-    metrics:
-      enabled: true
-      endpoint: "/metrics"
-      prometheus: true
-      custom_metrics:
-        - "payment_transactions_total"
-        - "payment_amount_processed"
-        - "payment_failures_total"
-        - "payment_processing_duration"
-    
     # Logging Configuration
     logging:
-      level: "info"              # debug, info, warn, error
-      format: "json"             # json, text
-      output: "stdout"           # stdout, file
-      enable_caller: true
-      enable_stacktrace: false
-      fields:
-        service: "payment-service"
-        version: "1.0.0"
-    
-    # Security Configuration
-    security:
-      cors:
-        enabled: true
-        allowed_origins:
-          - "http://localhost:3000"
-          - "http://localhost:8080"
-          - "https://api.nexus-commerce.local"
-        allowed_methods:
-          - "GET"
-          - "POST"
-          - "PUT"
-          - "DELETE"
-          - "OPTIONS"
-        allowed_headers:
-          - "Authorization"
-          - "Content-Type"
-          - "X-Requested-With"
-        allow_credentials: true
-      
-      jwt:
-        enabled: true
-        secret: ""  # Will be set from secret
-        expiration: "24h"
-        issuer: "nexus-commerce"
-      
-      encryption:
-        key: ""  # Will be set from secret
-        algorithm: "AES-256-GCM"
-    
-    # Feature Flags
-    features:
-      recurring_payments: true
-      refunds: true
-      partial_refunds: true
-      multi_currency: false
-      saved_payment_methods: true
-      webhooks: true
-      audit_logging: true
-    
-    # Webhook Configuration
-    webhooks:
-      enabled: true
-      endpoints:
-        stripe: "/webhooks/stripe"
-        paypal: "/webhooks/paypal"
-      signature_validation: true
-      retry_attempts: 3
-      timeout: "10s"
-  
+      level:
+        org.springframework.cloud.gateway: DEBUG
+        org.springframework.web: DEBUG
+        com.Ecommerce.User_Service: DEBUG
+        org.springframework.data.redis: DEBUG
+        org.springframework.web.cors: DEBUG
+        io.github.resilience4j: DEBUG
+        org.springframework.boot.autoconfigure: DEBUG
+        com.Ecommerce: DEBUG
+        org.springframework.kafka: DEBUG
+        org.apache.kafka: WARN
+        org.springframework.data.mongodb: DEBUG
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+  bootstrap.yml: |
+    spring:
+      application:
+        name: user-service
+      cloud:
+        config:
+          uri: http://config-server.infrastructure.svc.cluster.local:8888
+      profiles:
+        active: docker,kafka
+
+  logback-spring.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <configuration>
+        <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+        <springProperty scope="context" name="application.name" source="spring.application.name" defaultValue="User-Service"/>
+
+        <!-- Console appender for local debugging -->
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [${application.name}] %logger{36} - %msg%n</pattern>
+                <charset>UTF-8</charset>
+            </encoder>
+        </appender>
+
+        <!-- Kafka appender for sending logs to ELK -->
+        <appender name="KAFKA" class="com.github.danielwegener.logback.kafka.KafkaAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeContext>true</includeContext>
+                <includeMdc>true</includeMdc>
+                <includeStackTrace>true</includeStackTrace>
+                <customFields>{"service_name":"${application.name}","environment":"kubernetes"}</customFields>
+                <fieldNames>
+                    <timestamp>@timestamp</timestamp>
+                    <version>[ignore]</version>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+            </encoder>
+
+            <!-- Kafka settings -->
+            <topic>app-logs</topic>
+            <keyingStrategy class="com.github.danielwegener.logback.kafka.keying.NoKeyKeyingStrategy" />
+            <deliveryStrategy class="com.github.danielwegener.logback.kafka.delivery.AsynchronousDeliveryStrategy" />
+
+            <!-- Producer configuration -->
+            <producerConfig>bootstrap.servers=kafka-service.data.svc.cluster.local:9092</producerConfig>
+            <producerConfig>acks=1</producerConfig>
+            <producerConfig>retries=3</producerConfig>
+            <producerConfig>linger.ms=1000</producerConfig>
+            <producerConfig>max.block.ms=5000</producerConfig>
+
+            <!-- Fallback to console if Kafka fails -->
+            <appender-ref ref="CONSOLE" />
+        </appender>
+
+        <!-- Profile-specific configurations -->
+        <springProfile name="kafka">
+            <root level="INFO">
+                <appender-ref ref="CONSOLE" />
+                <appender-ref ref="KAFKA" />
+            </root>
+
+            <!-- User_Service Service specific logging -->
+            <logger name="com.Ecommerce.User_Service" level="DEBUG" additivity="false">
+                <appender-ref ref="CONSOLE" />
+                <appender-ref ref="KAFKA" />
+            </logger>
+
+            <!-- Spring framework logs -->
+            <logger name="org.springframework.web" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE" />
+                <appender-ref ref="KAFKA" />
+            </logger>
+
+            <!-- Kafka-related logs (reduce noise) -->
+            <logger name="org.apache.kafka" level="WARN" additivity="false">
+                <appender-ref ref="CONSOLE" />
+            </logger>
+
+            <logger name="org.springframework.kafka" level="INFO" additivity="false">
+                <appender-ref ref="CONSOLE" />
+            </logger>
+        </springProfile>
+
+        <!-- Default profile (no Kafka) -->
+        <springProfile name="!kafka">
+            <root level="INFO">
+                <appender-ref ref="CONSOLE" />
+            </root>
+        </springProfile>
+    </configuration>
+
   # Environment-specific overrides
   .env: |
-    # Go specific environment variables
-    GOOS=linux
-    GOARCH=amd64
-    CGO_ENABLED=0
-    
     # Service configuration
-    PORT=8084
-    GIN_MODE=release
+    PORT=8081
+    SPRING_PROFILES_ACTIVE=docker,kafka
     
     # Database
-    DB_HOST=postgres-service.data.svc.cluster.local
-    DB_PORT=5432
-    DB_NAME=paymentdb
-    
-    # Redis
-    REDIS_HOST=redis-service.data.svc.cluster.local
-    REDIS_PORT=6379
-    REDIS_DB=4
+    MONGODB_HOST=user-mongodb-headless.data.svc.cluster.local
+    MONGODB_PORT=27017
+    MONGODB_DATABASE=User-service
     
     # Kafka
-    KAFKA_BROKERS=kafka-service.data.svc.cluster.local:9092
+    KAFKA_BOOTSTRAP_SERVERS=kafka-service.data.svc.cluster.local:9092
+    
+    # Service Discovery
+    EUREKA_DEFAULT_ZONE=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/
+    
+    # Config Server
+    CONFIG_SERVER_URI=http://config-server.infrastructure.svc.cluster.local:8888
     
     # Monitoring
     ENABLE_METRICS=true
     ENABLE_HEALTH_CHECK=true
     
-    # Security
-    ENABLE_CORS=true
-    ENABLE_JWT=true
+    # Logging
+    LOGSTASH_HOST=logstash-service.logging.svc.cluster.local
+    LOGSTASH_PORT=5000
