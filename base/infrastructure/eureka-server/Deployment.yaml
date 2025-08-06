@@ -18,41 +18,80 @@ spec:
         component: infrastructure
     spec:
       containers:
-      - name: eureka-server
-        image: yahyazakaria123/ecommerce-app-discovery-service:latest
-        ports:
-        - containerPort: 8761
-          name: http
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "docker"
-        - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
-          value: "false"
-        - name: EUREKA_CLIENT_FETCH_REGISTRY
-          value: "false"
-        - name: EUREKA_INSTANCE_HOSTNAME
-          value: "eureka-server"
-        - name: EUREKA_SERVER_ENABLE_SELF_PRESERVATION
-          value: "false"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8761
-          initialDelaySeconds: 90
-          periodSeconds: 30
-          timeoutSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8761
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          timeoutSeconds: 5
+        - name: eureka-server
+          image: yahyazakaria123/ecommerce-app-discovery-service:latest
+          ports:
+            - containerPort: 8761
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker"
+            - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+              value: "false"
+            - name: EUREKA_CLIENT_FETCH_REGISTRY
+              value: "false"
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: "eureka-server"
+            - name: EUREKA_SERVER_ENABLE_SELF_PRESERVATION
+              value: "false"
+            # Zipkin configuration
+            - name: SPRING_ZIPKIN_BASE_URL
+              value: "http://zipkin-server.infrastructure:9411"
+            - name: SPRING_SLEUTH_ZIPKIN_BASE_URL
+              value: "http://zipkin-server.infrastructure:9411"
+            - name: SPRING_SLEUTH_SAMPLER_PROBABILITY
+              value: "1.0"
+            - name: MANAGEMENT_TRACING_SAMPLING_PROBABILITY
+              value: "1.0"
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              value: "http://zipkin-server.infrastructure:9411/api/v2/spans"
+          volumeMounts:
+            - name: eureka-config
+              mountPath: /config/application.yml
+              subPath: application.yml
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 90
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8761
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+      # Optional: Wait for Zipkin to be available (can be removed if not needed)
+      initContainers:
+        - name: wait-for-zipkin
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Zipkin server to be ready..."
+              timeout=180
+              elapsed=0
+              until nc -z zipkin-server.infrastructure 9411 || [ $elapsed -gt $timeout ]; do
+                echo "Zipkin server not ready yet, sleeping... ($elapsed/$timeout)"
+                sleep 10
+                elapsed=$((elapsed + 10))
+              done
+              if [ $elapsed -gt $timeout ]; then
+                echo "Warning: Zipkin server not available, proceeding anyway..."
+              else
+                echo "Zipkin server is ready!"
+              fi
+      volumes:
+        - name: eureka-config
+          configMap:
+            name: eureka-server-config
       restartPolicy: Always

@@ -24,28 +24,15 @@ spec:
             - containerPort: 9411
               name: http
           env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "docker"
-            - name: ZIPKIN_INSTANCE_HOSTNAME
-              value: "zipkin-server"
-            - name: ZIPKIN_CLIENT_REGISTER_WITH_EUREKA
-              value: "true"
-            - name: ZIPKIN_CLIENT_FETCH_REGISTRY
-              value: "true"
-            # Kafka configuration for trace collection
-            - name: KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data:9092"
-            - name: KAFKA_TOPIC
-              value: "zipkin"
-            # Eureka server URL
-            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-              value: "http://eureka-server.infrastructure:8761/eureka/"
-            # Storage configuration (using memory for dev, change for production)
+            # Zipkin storage
             - name: STORAGE_TYPE
               value: "mem"
-            # JVM settings for better performance
+            # JVM settings
             - name: JAVA_OPTS
               value: "-XX:+UseG1GC -Xms512m -Xmx1g"
+            # Self-registration with Eureka (optional for Zipkin)
+            - name: EUREKA_SERVICE_URL
+              value: "http://eureka-server.infrastructure:8761/eureka/"
           resources:
             requests:
               memory: "512Mi"
@@ -53,14 +40,11 @@ spec:
             limits:
               memory: "1Gi"
               cpu: "500m"
-          volumeMounts:
-            - name: zipkin-config
-              mountPath: /zipkin/config
           livenessProbe:
             httpGet:
               path: /health
               port: 9411
-            initialDelaySeconds: 120
+            initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
@@ -68,7 +52,7 @@ spec:
             httpGet:
               path: /health
               port: 9411
-            initialDelaySeconds: 60
+            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
@@ -76,12 +60,8 @@ spec:
             httpGet:
               path: /health
               port: 9411
-            initialDelaySeconds: 30
+            initialDelaySeconds: 20
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 10
-      volumes:
-        - name: zipkin-config
-          configMap:
-            name: zipkin-config
       restartPolicy: Always
