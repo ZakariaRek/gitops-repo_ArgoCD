@@ -37,7 +37,7 @@ configMapGenerator:
   - GATEWAY_TIMEOUT=60s
   - ENABLE_REQUEST_LOGGING=true
 
-# Use new patches syntax instead of deprecated patchesStrategicMerge
+# Use new patches syntax instead of deprecated   patchesStrategicMerge
 patches:
 - patch: |-
     apiVersion: apps/v1
