@@ -1,78 +1,158 @@
-  apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: user-service-config-fixed
-    namespace: microservices
-  data:
-    application.yml: |
-      spring:
-        profiles:
-          active: kafka,docker
-        application:
-          name: user-service
-        
-        # Kafka Configuration - FIXED
-        kafka:
-          bootstrap-servers: kafka-service.data.svc.cluster.local:9092
-          producer:
-            bootstrap-servers: kafka-service.data.svc.cluster.local:9092
-            key-serializer: org.apache.kafka.common.serialization.StringSerializer
-            value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-            properties:
-              spring.json.add.type.headers: false
-          consumer:
-            bootstrap-servers: kafka-service.data.svc.cluster.local:9092
-            group-id: user-service-group
-            auto-offset-reset: earliest
-            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-            value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-            properties:
-              spring.json.trusted.packages: "*"
-        
-        # MongoDB Configuration
-        data:
-          mongodb:
-            database: User-service
-            host: user-mongodb-headless.data.svc.cluster.local
-            port: 27017
-            username: ${SPRING_DATA_MONGODB_USERNAME}
-            password: ${SPRING_DATA_MONGODB_PASSWORD}
-            authentication-database: admin
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  namespace: microservices
+  labels:
+    app: user-service
+    component: microservices
+data:
+  application.yml: |
+    server:
+      port: 8081
+      servlet:
+        context-path: /api/users
+      error:
+        include-stacktrace: always
+        include-message: always
+        include-binding-errors: always
+    
+    debug: true
+    
+    spring:
+      profiles:
+        active: docker,kafka
+      config:
+        import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+      application:
+        name: user-service
       
-      # Server Configuration
-      server:
-        port: 8081
-        servlet:
-          context-path: /api/users
+      # MongoDB Configuration
+      data:
+        mongodb:
+          host: ${SPRING_DATA_MONGODB_HOST:user-mongodb-headless.data.svc.cluster.local}
+          port: ${SPRING_DATA_MONGODB_PORT:27017}
+          database: ${SPRING_DATA_MONGODB_DATABASE:User-service}
+          username: ${SPRING_DATA_MONGODB_USERNAME:userservice}
+          password: ${SPRING_DATA_MONGODB_PASSWORD:userservice123}
+          uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice:userservice123@user-mongodb-headless.data.svc.cluster.local:27017/User-service}
+          authentication-database: ${SPRING_DATA_MONGODB_AUTH_DATABASE:admin}
+        
+        # Redis Configuration (optional for user caching)
+        redis:
+          host: ${SPRING_DATA_REDIS_HOST:redis-service.data.svc.cluster.local}
+          port: ${SPRING_DATA_REDIS_PORT:6379}
+          database: ${SPRING_DATA_REDIS_DATABASE:1}
+          timeout: ${SPRING_DATA_REDIS_TIMEOUT:2000ms}
+          lettuce:
+            pool:
+              max-active: 8
+              max-idle: 8
+              min-idle: 0
+              max-wait: -1ms
+        
+        # Cache Configuration
+        cache:
+          type: redis
+          redis:
+            time-to-live: 1800000
+            cache-null-values: false
       
-      # Eureka Service Discovery
-      eureka:
-        instance:
-          preferIpAddress: true
+      # Kafka Configuration
+      kafka:
+        bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+        producer:
+          key-serializer: org.apache.kafka.common.serialization.StringSerializer
+          value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          properties:
+            spring.json.add.type.headers: false
+            acks: all
+            retries: 3
+            enable.idempotence: true
+        consumer:
+          group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:user-service-group}
+          auto-offset-reset: earliest
+          enable-auto-commit: false
+          key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+          value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+          properties:
+            spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+            spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+            spring.json.trusted.packages: "*"
+            spring.json.use.type.headers: false
+            spring.json.value.default.type: java.lang.Object
+    
+    # Eureka Configuration
+    eureka:
+      instance:
+        preferIpAddress: true
+        instanceId: ${spring.application.name}:${server.port}
+        hostname: user-service
+        metadataMap:
           instanceId: ${spring.application.name}:${server.port}
-          hostname: ${HOSTNAME:user-service}
-        client:
-          registerWithEureka: true
-          fetchRegistry: true
-          serviceUrl:
-            defaultZone: http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/
-      
-      # Management Endpoints
-      management:
-        endpoints:
-          web:
-            exposure:
-              include: "*"
-        endpoint:
-          health:
-            show-details: always
-      
-      # Logging Configuration
-      logging:
-        level:
-          org.springframework.kafka: INFO  # Reduced from DEBUG
-          org.apache.kafka: WARN
-          com.Ecommerce.User_Service: DEBUG
-          org.springframework.data.mongodb: INFO  # Reduced from DEBUG
-        pattern:
-          console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+      client:
+        registryFetchIntervalSeconds: 5
+        instanceInfoReplicationIntervalSeconds: 5
+        initialInstanceInfoReplicationIntervalSeconds: 5
+        eurekaServiceUrlPollIntervalSeconds: 5
+        registerWithEureka: true
+        fetchRegistry: true
+        serviceUrl:
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
+    
+    # Management and Monitoring
+    management:
+      health:
+        mongo:
+          enabled: true
+        redis:
+          enabled: true
+      endpoint:
+        health:
+          show-details: "ALWAYS"
+          show-components: "ALWAYS"
+        metrics:
+          enabled: true
+      endpoints:
+        web:
+          exposure:
+            include: "*"
+          cors:
+            allowed-origins: "*"
+            allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+      metrics:
+        distribution:
+          percentiles-histogram:
+            http.server.requests: true
+          percentiles:
+            http.server.requests: 0.5, 0.95, 0.99
+        tags:
+          application: ${spring.application.name}
+    
+    # Redis configuration
+    redis:
+      maximumActiveConnectionCount: 128
+    
+    # User Service Specific Configuration
+    user:
+      session:
+        timeout: 3600 # 1 hour
+      cache:
+        ttl: 1800 # 30 minutes
+      cleanup:
+        schedule: "0 0 */12 * * *" # Every 12 hours
+      security:
+        jwt:
+          secret: ${JWT_SECRET:your-jwt-secret-key}
+          expiration: 86400 # 24 hours
+    
+    # Logging Configuration
+    logging:
+      level:
+        org.springframework.kafka: INFO
+        org.apache.kafka: WARN
+        com.Ecommerce.User_Service: DEBUG
+        org.springframework.data.mongodb: INFO
+        root: INFO
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
