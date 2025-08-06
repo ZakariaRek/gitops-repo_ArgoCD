@@ -8,6 +8,7 @@ metadata:
 # Reference the base user-service configuration
 resources:
   - ../../../../base/microservices/user-service
+  - user-service-ingress.yaml
 
 # Use microservices namespace
 namespace: microservices
@@ -21,7 +22,7 @@ labels:
 # Use development image tag
 images:
   - name: yahyazakaria123/ecommerce-app-user-service
-    newTag: latest
+    newTag: latest  # You can change to dev-latest when available
 
 # Reduce replicas for dev (save resources)
 replicas:
@@ -37,8 +38,9 @@ configMapGenerator:
       - ENABLE_REQUEST_LOGGING=true
       - MONGODB_DATABASE=User-service-dev
       - EUREKA_INSTANCE_HOSTNAME=localhost
+      - JWT_EXPIRATION_MS=86400000
 
-# Use patches for dev-specific configurations
+# Use patches with JSON patch syntax for precise control
 patches:
   # Patch deployment for dev-specific environment variables and resources
   - patch: |-
@@ -57,7 +59,7 @@ patches:
           - name: SERVER_SERVLET_CONTEXT_PATH
             value: "/api/users"
 
-          # Service Discovery (Eureka) - Fixed: use only value, not valueFrom
+          # Service Discovery (Eureka)
           - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
             value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/"
           - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
@@ -151,6 +153,12 @@ patches:
           # Spring Boot Configuration
           - name: SPRING_ZIPKIN_ENABLED
             value: "false"
+
+          # Dev-specific settings
+          - name: LOG_LEVEL
+            value: "DEBUG"
+          - name: ENABLE_REQUEST_LOGGING
+            value: "true"
     target:
       kind: Deployment
       name: user-service
