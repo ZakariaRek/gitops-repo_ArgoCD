@@ -6,6 +6,7 @@ metadata:
   labels:
     app: product-service
     component: microservices
+    tier: backend
 spec:
   replicas: 2
   selector:
@@ -16,70 +17,143 @@ spec:
       labels:
         app: product-service
         component: microservices
+        tier: backend
     spec:
       containers:
-      - name: product-service
-        image: yahyazakaria123/ecommerce-app-product-service:latest
-        ports:
-        - containerPort: 8081
-          name: http
-        env:
-        - name: SPRING_PROFILES_ACTIVE
-          value: "docker,kafka"
-        - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
-          value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-        - name: SPRING_CLOUD_CONFIG_URI
-          value: "http://config-server.infrastructure.svc.cluster.local:8888"
-        - name: SPRING_APPLICATION_NAME
-          value: "product-service"
-        - name: SERVER_PORT
-          value: "8081"
-        # Database configuration
-        - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb"
-        - name: SPRING_DATASOURCE_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: product-service-secrets
-              key: db-username
-        - name: SPRING_DATASOURCE_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: product-service-secrets
-              key: db-password
-        # Redis configuration for caching
-        - name: SPRING_DATA_REDIS_HOST
-          value: "redis-service.data.svc.cluster.local"
-        - name: SPRING_DATA_REDIS_PORT
-          value: "6379"
-        - name: SPRING_DATA_REDIS_DATABASE
-          value: "2"
-        # Kafka configuration
-        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-          value: "kafka-service.data.svc.cluster.local:9092"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8081
-          initialDelaySeconds: 90
-          periodSeconds: 30
-        readinessProbe:
-          httpGet:
-            path: /actuator/health/readiness
-            port: 8081
-          initialDelaySeconds: 60
-          periodSeconds: 10
-        startupProbe:
-          httpGet:
-            path: /actuator/health
-            port: 8081
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          failureThreshold: 18
+        - name: product-service
+          image: yahyazakaria123/ecommerce-app-product-service:latest
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            # Application Configuration
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,kafka"
+            - name: SPRING_APPLICATION_NAME
+              value: "product-service"
+            - name: SERVER_PORT
+              value: "8081"
+            - name: SERVER_SERVLET_CONTEXT_PATH
+              value: "/api/products"
+
+            # Eureka Configuration
+            - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: "product-service"
+
+            # Config Server Configuration
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server.infrastructure.svc.cluster.local:8888"
+
+            # PostgreSQL Configuration (Cross-namespace)
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: product-service-secrets
+                  key: db-username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: product-service-secrets
+                  key: db-password
+
+
+
+            # Kafka Configuration (Cross-namespace)
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+              value: "product-service-group"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+          # Health Checks
+          livenessProbe:
+            httpGet:
+              path: /api/products/actuator/health
+              port: 8081
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /api/products/actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+
+          startupProbe:
+            httpGet:
+              path: /api/products/actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 20
+            timeoutSeconds: 5
+
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+            - name: logs-volume
+              mountPath: /app/logs
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: product-service-config
+        - name: logs-volume
+          emptyDir: {}
+
+      # InitContainers for proper startup order
+      initContainers:
+        # Wait for PostgreSQL
+        - name: wait-for-postgres
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for PostgreSQL..."
+              until nc -z postgres-service.data.svc.cluster.local 5432; do 
+                echo "PostgreSQL not ready, waiting..."
+                sleep 3
+              done
+              echo "PostgreSQL is ready!"
+
+        # Wait for Kafka
+        - name: wait-for-kafka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Kafka..."
+              until nc -z kafka-service.data.svc.cluster.local 9092; do 
+                echo "Kafka not ready, waiting..."
+                sleep 3
+              done
+              echo "Kafka is ready!"
+
+        # Wait for Eureka
+        - name: wait-for-eureka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Eureka..."
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
+                echo "Eureka not ready, waiting..."
+                sleep 3
+              done
+              echo "Eureka is ready!"

@@ -6,6 +6,7 @@ metadata:
   labels:
     app: user-service
     component: microservices
+    tier: backend
 spec:
   replicas: 2
   selector:
@@ -16,6 +17,7 @@ spec:
       labels:
         app: user-service
         component: microservices
+        tier: backend
     spec:
       containers:
         - name: user-service
@@ -50,7 +52,7 @@ spec:
             - name: SPRING_CLOUD_CONFIG_URI
               value: "http://config-server.infrastructure.svc.cluster.local:8888"
 
-            # MongoDB Configuration
+            # MongoDB Configuration (Cross-namespace)
             - name: SPRING_DATA_MONGODB_HOST
               value: "user-mongodb-headless.data.svc.cluster.local"
             - name: SPRING_DATA_MONGODB_PORT
@@ -69,8 +71,10 @@ spec:
                   key: mongodb-password
             - name: SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE
               value: "admin"
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin"
 
-            # Kafka Configuration
+            # Kafka Configuration (Cross-namespace)
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
@@ -135,6 +139,8 @@ spec:
             - name: config-volume
               mountPath: /app/config
               readOnly: true
+            - name: logs-volume
+              mountPath: /app/logs
 
           resources:
             requests:
@@ -158,10 +164,10 @@ spec:
             httpGet:
               path: /api/users/actuator/health/readiness
               port: 8081
-            initialDelaySeconds: 60
+            initialDelaySeconds: 90
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 5
 
           startupProbe:
             httpGet:
@@ -170,7 +176,7 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 18
+            failureThreshold: 20
 
       volumes:
         - name: config-volume
@@ -183,3 +189,59 @@ spec:
                 path: bootstrap.yml
               - key: logback-spring.xml
                 path: logback-spring.xml
+        - name: logs-volume
+          emptyDir: {}
+
+      # InitContainers for proper startup order
+      initContainers:
+        # Wait for MongoDB
+        - name: wait-for-mongodb
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for User MongoDB..."
+              until nc -z user-mongodb-headless.data.svc.cluster.local 27017; do 
+                echo "MongoDB not ready, waiting..."
+                sleep 3
+              done
+              echo "User MongoDB is ready!"
+
+        # Wait for Kafka
+        - name: wait-for-kafka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Kafka..."
+              until nc -z kafka-service.data.svc.cluster.local 9092; do 
+                echo "Kafka not ready, waiting..."
+                sleep 3
+              done
+              echo "Kafka is ready!"
+
+        # Wait for Eureka
+        - name: wait-for-eureka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Eureka..."
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
+                echo "Eureka not ready, waiting..."
+                sleep 3
+              done
+              echo "Eureka is ready!"
+
+        # Wait for Config Server
+        - name: wait-for-config-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Config Server..."
+              until nc -z config-server.infrastructure.svc.cluster.local 8888; do 
+                echo "Config Server not ready, waiting..."
+                sleep 3
+              done
+              echo "Config Server is ready!"
