@@ -24,6 +24,29 @@ data:
         active: docker,kafka
       config:
         import: optional:configserver:${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+        # Enhanced config server retry and failure handling
+        retry:
+          initial-interval: 3000
+          max-attempts: 6
+          max-interval: 4000
+          multiplier: 1.1
+        fail-fast: false
+      cloud:
+        config:
+          uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
+          enabled: true
+          discovery:
+            enabled: false
+            service-id: config-server
+          retry:
+            enabled: true
+            initial-interval: 3000
+            max-attempts: 6
+            max-interval: 4000
+            multiplier: 1.1
+          fail-fast: false
+          request-connect-timeout: 10000
+          request-read-timeout: 10000
       application:
         name: user-service
       
@@ -69,10 +92,12 @@ data:
             acks: all
             retries: 3
             enable.idempotence: true
+            bootstrap.servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
         consumer:
           group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:user-service-group}
           auto-offset-reset: earliest
           enable-auto-commit: false
+          bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
           key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           properties:
@@ -82,30 +107,62 @@ data:
             spring.json.use.type.headers: false
             spring.json.value.default.type: java.lang.Object
     
-    # Eureka Configuration
+    # Enhanced Eureka Configuration for better service discovery
     eureka:
       instance:
         preferIpAddress: true
-        instanceId: ${spring.application.name}:${server.port}
-        hostname: user-service
+        instanceId: ${spring.application.name}:${HOSTNAME:user-service}:${server.port}
+        hostname: ${HOSTNAME:user-service}
         metadataMap:
           instanceId: ${spring.application.name}:${server.port}
+          zone: microservices
+          management.context-path: /api/users/actuator
+        # Faster registration
+        leaseRenewalIntervalInSeconds: 30
+        leaseExpirationDurationInSeconds: 90
+        # Health check URL
+        statusPageUrlPath: /api/users/actuator/info
+        healthCheckUrlPath: /api/users/actuator/health
+        homePageUrlPath: /api/users/actuator
       client:
+        # Faster discovery
         registryFetchIntervalSeconds: 5
         instanceInfoReplicationIntervalSeconds: 5
         initialInstanceInfoReplicationIntervalSeconds: 5
         eurekaServiceUrlPollIntervalSeconds: 5
+        # Core settings
         registerWithEureka: true
         fetchRegistry: true
         serviceUrl:
           defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
+        # Connection settings
+        eureka-server-connect-timeout-seconds: 15
+        eureka-server-read-timeout-seconds: 8
+        eureka-connection-idle-timeout-seconds: 30
+        # Health check settings
+        healthcheck:
+          enabled: true
+        # Availability zones
+        availability-zones:
+          microservices: microservices
+        region: microservices
     
-    # Management and Monitoring
+    # Enhanced Management and Monitoring
     management:
+      server:
+        port: 8081
+        servlet:
+          context-path: /actuator
       health:
         mongo:
           enabled: true
         redis:
+          enabled: true
+        eureka:
+          enabled: true
+        kafka:
+          enabled: true
+        config:
           enabled: true
       endpoint:
         health:
@@ -113,8 +170,17 @@ data:
           show-components: "ALWAYS"
         metrics:
           enabled: true
+        env:
+          show-values: "ALWAYS"
+        info:
+          enabled: true
+        configprops:
+          enabled: true
+        refresh:
+          enabled: true
       endpoints:
         web:
+          base-path: /actuator
           exposure:
             include: "*"
           cors:
@@ -128,6 +194,10 @@ data:
             http.server.requests: 0.5, 0.95, 0.99
         tags:
           application: ${spring.application.name}
+          service: user-service
+        export:
+          prometheus:
+            enabled: true
     
     # Redis configuration
     redis:
@@ -146,13 +216,35 @@ data:
           secret: ${JWT_SECRET:your-jwt-secret-key}
           expiration: 86400 # 24 hours
     
-    # Logging Configuration
+    # Enhanced Logging Configuration with service discovery debugging
     logging:
       level:
         org.springframework.kafka: INFO
         org.apache.kafka: WARN
         com.Ecommerce.User_Service: DEBUG
         org.springframework.data.mongodb: INFO
+        org.springframework.cloud.config: DEBUG
+        org.springframework.cloud.netflix.eureka: DEBUG
+        com.netflix.eureka: DEBUG
+        com.netflix.discovery: DEBUG
+        org.springframework.web: DEBUG
+        org.springframework.boot.actuate: DEBUG
         root: INFO
       pattern:
-        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"
+      file:
+        name: /app/logs/user-service.log
+    
+    # Info endpoint configuration
+    info:
+      app:
+        name: ${spring.application.name}
+        description: User Service for E-commerce Application
+        version: latest
+        java:
+          version: @java.version@
+        dependencies:
+          eureka-server: eureka-server.infrastructure.svc.cluster.local:8761
+          config-server: config-server.infrastructure.svc.cluster.local:8888
+          mongodb: user-mongodb-headless.data.svc.cluster.local:27017
+          kafka: kafka-service.data.svc.cluster.local:9092
