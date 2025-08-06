@@ -1,0 +1,84 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: shipping-service-dev
+  namespace: microservices
+
+# Reference the base shipping-service configuration
+resources:
+  - ../../../../base/microservices/shipping-service
+  - shipping-service-ingress.yaml
+
+# Use microservices namespace
+namespace: microservices
+
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+# Use development image tag
+images:
+  - name: yahyazakaria123/ecommerce-app-shipping-service
+    newTag: latest  # You can change to dev-latest when available
+
+# Reduce replicas for dev (save resources)
+replicas:
+  - name: shipping-service
+    count: 1
+
+# Development-specific patches
+patches:
+  # Reduce resource requirements for development
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: shipping-service
+        namespace: microservices
+      spec:
+        template:
+          spec:
+            containers:
+              - name: shipping-service
+                env:
+                  # Enable debug logging for development
+                  - name: LOG_LEVEL
+                    value: "DEBUG"
+                  - name: GIN_MODE
+                    value: "debug"
+                  - name: CONFIG_PROFILE
+                    value: "dev"
+                  # Reduce timeouts for faster development cycles
+                  - name: REQUEST_TIMEOUT
+                    value: "15s"
+                  - name: DATABASE_TIMEOUT
+                    value: "5s"
+                  # Enable additional debugging features
+                  - name: ENABLE_DEBUG_ENDPOINTS
+                    value: "true"
+                  - name: ENABLE_DETAILED_LOGGING
+                    value: "true"
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "100m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+                # Faster health checks for development
+                livenessProbe:
+                  initialDelaySeconds: 30
+                  periodSeconds: 15
+                readinessProbe:
+                  initialDelaySeconds: 15
+                  periodSeconds: 5
+                startupProbe:
+                  initialDelaySeconds: 10
+                  periodSeconds: 5
+                  failureThreshold: 6
+    target:
+      kind: Deployment
+      name: shipping-service

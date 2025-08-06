@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shipping-service-config
+  namespace: microservices
+  labels:
+    app: shipping-service
+    component: microservices
+data:
+  application.yml: |
+    server:
+      port: 8082
+    
+    app:
+      name: SHIPPING-SERVICE
+      environment: docker
+      version: "2.0.0"
+    
+    # Database Configuration
+    datasource:
+      host: shipping-postgres-service.data.svc.cluster.local
+      port: "5432"
+      database: shippingdb
+      username: shippingservice
+      password: # Will be overridden by secret
+      sslmode: disable
+      max-open-conns: "25"
+      max-idle-conns: "5"
+    
+    # Eureka Configuration
+    eureka:
+      client:
+        service-url:
+          defaultZone: http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
+        register-with-eureka: true
+        fetch-registry: true
+      instance:
+        hostname: shipping-service
+        preferIpAddress: true
+        instanceId: shipping-service:8082
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
+    
+    # Kafka Configuration
+    kafka:
+      brokers: kafka-service.data.svc.cluster.local:9092
+      consumer:
+        group: shipping-service-group
+        enable: true
+        topics: shipping-created,shipping-updated,shipping-status-changed,shipping-deleted,tracking-created,tracking-updated,tracking-deleted
+      producer:
+        acks: all
+        retries: 3
+        batch-size: 16384
+        linger-ms: 5
+        buffer-memory: 33554432
+        compression-type: snappy
+      topics:
+        shipping-created: shipping-created
+        shipping-updated: shipping-updated
+        shipping-status-changed: shipping-status-changed
+        shipping-deleted: shipping-deleted
+        shipping-order-update: shipping-update
+        tracking-created: tracking-created
+        tracking-updated: tracking-updated
+        tracking-deleted: tracking-deleted
+    
+    # Config Server Configuration
+    config:
+      server:
+        url: http://config-server.infrastructure.svc.cluster.local:8888
+        profile: docker
+        label: main
+        enabled: true
+        fail-fast: false
+        retry:
+          initial-interval: 1000
+          max-attempts: 6
+          max-interval: 2000
+          multiplier: 1.1
+    
+    # Service Configuration
+    service:
+      shipping-only: false
+      tracking-only: false
+      enable-gps-tracking: true
+      enable-real-time-updates: true
+      enable-address-management: true
+      enable-location-updates: true
+    
+    # Monitoring and Health
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    # Logging Configuration
+    logging:
+      level:
+        root: INFO
+        com.ecommerce.shipping: DEBUG
+      pattern:
+        console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+      file:
+        name: /app/logs/shipping-service.log
+        max-size: 10MB
+        max-history: 30

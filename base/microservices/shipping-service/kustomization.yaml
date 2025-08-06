@@ -1,0 +1,64 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: shipping-service
+  namespace: microservices
+
+resources:
+  - Deployment.yaml
+  - Service.yaml
+  - ConfigMap.yaml
+  - Secret.yaml
+
+# Use 'labels' instead of deprecated 'commonLabels'
+labels:
+  - pairs:
+      app: shipping-service
+      component: microservices
+      version: latest
+      tier: business-logic
+      service-type: shipping-logistics
+
+images:
+  - name: yahyazakaria123/ecommerce-app-shipping-service
+    newTag: latest
+
+namespace: microservices
+
+replicas:
+  - name: shipping-service
+    count: 2
+
+# Configuration patches for shipping service
+patches:
+  - patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          app.kubernetes.io/name: shipping-service
+          app.kubernetes.io/instance: shipping-service-instance
+          app.kubernetes.io/version: "2.0.0"
+          app.kubernetes.io/component: shipping-logistics
+          app.kubernetes.io/part-of: ecommerce-platform
+          app.kubernetes.io/managed-by: kustomize
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: shipping-service
+
+  - patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          app.kubernetes.io/name: shipping-service
+          app.kubernetes.io/instance: shipping-service-instance
+          app.kubernetes.io/version: "2.0.0"
+          app.kubernetes.io/component: shipping-logistics
+          app.kubernetes.io/part-of: ecommerce-platform
+          app.kubernetes.io/managed-by: kustomize
+    target:
+      version: v1
+      kind: Service
+      name: shipping-service
