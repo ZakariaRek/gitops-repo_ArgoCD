@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: product-postgres-config
+  namespace: data
+  labels:
+    app: product-postgres
+    component: data
+    service: product-service
+data:
+  database-name: "productdb"
