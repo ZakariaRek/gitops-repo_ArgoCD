@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: order-postgres
   namespace: data
@@ -9,6 +9,7 @@ metadata:
     service: order-service
     tier: database
 spec:
+  serviceName: order-postgres-service
   replicas: 1
   selector:
     matchLabels:
@@ -100,12 +101,25 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 12
       volumes:
-        - name: postgres-data
-          persistentVolumeClaim:
-            claimName: order-postgres-pvc
         - name: postgres-init
           configMap:
             name: order-postgres-init
         - name: postgres-config
           configMap:
             name: order-postgres-config
+  # StatefulSet manages its own persistent volumes
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+        labels:
+          app: order-postgres
+          component: data
+          service: order-service
+          tier: database
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: standard

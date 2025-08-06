@@ -9,6 +9,8 @@ metadata:
     service: order-service
     tier: database
 spec:
+  # Headless service for StatefulSet
+  clusterIP: None
   selector:
     app: order-postgres
   ports:
@@ -16,4 +18,3 @@ spec:
       port: 5432
       targetPort: 5432
       protocol: TCP
-  type: ClusterIP
