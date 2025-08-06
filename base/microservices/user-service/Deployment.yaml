@@ -198,8 +198,6 @@ spec:
             items:
               - key: application.yml
                 path: application.yml
-              - key: logback-spring.xml
-                path: logback-spring.xml
         - name: logs-volume
           emptyDir: {}
 
