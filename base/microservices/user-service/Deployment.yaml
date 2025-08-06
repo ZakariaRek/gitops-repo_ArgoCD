@@ -33,8 +33,6 @@ spec:
               value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
 
             # CRITICAL: Force Kafka to use the correct cluster address
-
-
             # Override any localhost configurations
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
@@ -44,6 +42,7 @@ spec:
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
+
             # Application Configuration
             - name: SPRING_APPLICATION_NAME
               value: "user-service"
@@ -164,35 +163,33 @@ spec:
               memory: "2Gi"
               cpu: "1000m"
 
-              # Relax health check timings
+          # Relax health check timings
           livenessProbe:
             httpGet:
               path: /api/users/actuator/health
               port: 8081
-            initialDelaySeconds: 180  # Increased from 120
-            periodSeconds: 45         # Increased from 30
-            timeoutSeconds: 15        # Increased from 10
-            failureThreshold: 5       # Increased from 3
+            initialDelaySeconds: 180
+            periodSeconds: 45
+            timeoutSeconds: 15
+            failureThreshold: 5
 
           readinessProbe:
             httpGet:
               path: /api/users/actuator/health/readiness
               port: 8081
-            initialDelaySeconds: 120  # Increased from 90
-            periodSeconds: 15         # Increased from 10
-            timeoutSeconds: 10        # Increased from 5
-            failureThreshold: 8       # Increased from 5
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 8
 
           startupProbe:
             httpGet:
               path: /api/users/actuator/health
               port: 8081
-            initialDelaySeconds: 60   # Increased from 30
-            periodSeconds: 15         # Increased from 10
-            timeoutSeconds: 10        # Increased from 5
-            failureThreshold: 30      # Increased from 20
-
-
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 30
 
       volumes:
         - name: config-volume
@@ -201,8 +198,6 @@ spec:
             items:
               - key: application.yml
                 path: application.yml
-              - key: bootstrap.yml
-                path: bootstrap.yml
               - key: logback-spring.xml
                 path: logback-spring.xml
         - name: logs-volume
