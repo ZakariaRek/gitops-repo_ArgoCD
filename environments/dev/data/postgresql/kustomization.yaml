@@ -6,9 +6,13 @@ namespace: data
 resources:
   - order-postgres
   - product-postgres
+<<<<<<< HEAD
   - loyalty-postgres
 
 
+=======
+  - payment-postgres
+>>>>>>> 6a3cd9040312557d38c4dfdbe9a97a6fbce22d34
 
 images:
   - name: postgres

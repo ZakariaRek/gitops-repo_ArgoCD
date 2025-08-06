@@ -2,20 +2,20 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 metadata:
-  name: product-postgres
+  name: payment-postgres
   namespace: data
 
 resources:
-  - Service.yaml
-  - Configmap.yaml
-  - Secret.yaml
-  - StatefulSet.yaml
+    - StatefulSet.yaml
+    - Secret.yaml
+    - Configmap.yaml
+    - Service.yaml
 
 labels:
   - pairs:
-      app: product-postgres
+      app: payment-postgres
       component: data
-      service: product-service
+      service: payment-service
       tier: database
       version: "15.4"
 
@@ -26,5 +26,5 @@ images:
 namespace: data
 
 replicas:
-  - name: product-postgres
+  - name: payment-postgres
     count: 1
