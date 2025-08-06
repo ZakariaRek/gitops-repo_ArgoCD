@@ -33,6 +33,7 @@ data:
         eviction-interval-timer-in-ms: 10000
         response-cache-update-interval-ms: 5000
     
+    # Zipkin tracing configuration for Eureka Server
     management:
       endpoints:
         web:
@@ -41,8 +42,27 @@ data:
       endpoint:
         health:
           show-details: always
+      tracing:
+        sampling:
+          probability: 1.0
+      zipkin:
+        tracing:
+          endpoint: http://zipkin-server.infrastructure:9411/api/v2/spans
+    
+    # Configure Zipkin for distributed tracing
+    spring:
+      zipkin:
+        base-url: http://zipkin-server.infrastructure:9411
+        sender:
+          type: web
+      sleuth:
+        zipkin:
+          base-url: http://zipkin-server.infrastructure:9411
+        sampler:
+          probability: 1.0
     
     logging:
       level:
         com.netflix.eureka: INFO
         com.netflix.discovery: INFO
+        zipkin2: INFO
