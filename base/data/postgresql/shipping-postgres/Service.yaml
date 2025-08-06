@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: shipping-postgres-service
+  namespace: data
+  labels:
+    app: shipping-postgres
+    component: data
+    service: shipping-service
+    tier: database
+spec:
+  # Headless service for StatefulSet
+  clusterIP: None
+  selector:
+    app: shipping-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP

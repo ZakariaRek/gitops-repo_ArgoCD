@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shipping-postgres-config
+  namespace: data
+  labels:
+    app: shipping-postgres
+    component: data
+    service: shipping-service
+data:
+  database-name: "shippingdb"
