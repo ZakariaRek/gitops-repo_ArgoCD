@@ -8,7 +8,7 @@ metadata:
 
 resources:
   - Service.yaml
-  - ConfigMap.yaml
+  - Configmap.yaml
   - Secret.yaml
   - StatefulSet.yaml
   - Pv.yaml
