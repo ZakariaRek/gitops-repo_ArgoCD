@@ -29,3 +29,4 @@ namespace: data
 replicas:
   - name: order-postgres
     count: 1
+

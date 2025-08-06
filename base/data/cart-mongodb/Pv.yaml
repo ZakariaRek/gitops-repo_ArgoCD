@@ -1,21 +1,95 @@
-#apiVersion: v1
-#kind: PersistentVolume
-#metadata:
-#  name: order-postgres-pv
-#  labels:
-#    app: order-postgres
-#    component: data
-#    service: order-service
-#    tier: database
-#spec:
-#  capacity:
-#    storage: 10Gi
-#  accessModes:
-#    - ReadWriteOnce
-#  persistentVolumeReclaimPolicy: Retain
-#  storageClassName: standard
-#  volumeMode: Filesystem
-#  # For local development (adjust based on your cluster setup)
-#  hostPath:
-#    path: /data/order-postgres
-#    type: DirectoryOrCreate
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cart-mongodb-data-pv
+  labels:
+    app: cart-mongodb
+    component: data
+    service: cart-service
+    tier: database
+    volume-type: data
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  volumeMode: Filesystem
+  # For local development (adjust based on your cluster setup)
+  hostPath:
+    path: /data/cart-mongodb/data
+    type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cart-mongodb-config-pv
+  labels:
+    app: cart-mongodb
+    component: data
+    service: cart-service
+    tier: database
+    volume-type: config
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  volumeMode: Filesystem
+  # For local development (adjust based on your cluster setup)
+  hostPath:
+    path: /data/cart-mongodb/config
+    type: DirectoryOrCreate
+
+---
+# Additional PVs for StatefulSet replicas (if using static PVs)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cart-mongodb-data-pv-1
+  labels:
+    app: cart-mongodb
+    component: data
+    service: cart-service
+    tier: database
+    volume-type: data
+    replica: "1"
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  volumeMode: Filesystem
+  hostPath:
+    path: /data/cart-mongodb/data-1
+    type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cart-mongodb-config-pv-1
+  labels:
+    app: cart-mongodb
+    component: data
+    service: cart-service
+    tier: database
+    volume-type: config
+    replica: "1"
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  volumeMode: Filesystem
+  hostPath:
+    path: /data/cart-mongodb/config-1
+    type: DirectoryOrCreate
