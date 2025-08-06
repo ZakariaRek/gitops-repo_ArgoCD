@@ -8,7 +8,7 @@ metadata:
 
 # Reference the base cart-mongodb configuration
 resources:
-  - ../../../../base/data/cart-mongodb
+  - ../../../../../base/data/mongodb/cart-mongodb
   - nodeport-service.yaml
 
 # Use data namespace

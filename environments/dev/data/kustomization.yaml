@@ -3,9 +3,9 @@ kind: Kustomization
 #  - redis
 resources:
 - kafka-zookeeper
-- user-mongodb
+- mongodb
 - postgresql
-- cart-mongodb
+
 labels:
 - pairs:
     environment: dev

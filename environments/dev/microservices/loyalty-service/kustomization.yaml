@@ -1,0 +1,20 @@
+# environments/dev/microservices/loyalty-service/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../../base/microservices/loyalty-service
+
+namespace: microservices
+
+labels:
+  - pairs:
+      environment: dev
+
+images:
+  - name: yahyazakaria123/ecommerce-app-loyalty-service
+    newTag: latest
+
+replicas:
+  - name: loyalty-service
+    count: 1

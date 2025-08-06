@@ -8,6 +8,7 @@ resources:
 - notification-service
 - payment-service
 - cart-service
+- loyalty-service
 
 # Use 'labels' instead of deprecated 'commonLabels'
 labels:

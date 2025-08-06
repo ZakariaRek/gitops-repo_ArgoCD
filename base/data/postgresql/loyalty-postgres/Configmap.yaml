@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loyalty-postgres-config
+  namespace: data
+  labels:
+    app: loyalty-postgres
+    component: data
+    service: loyalty-service
+data:
+  database-name: "loyalty-service"

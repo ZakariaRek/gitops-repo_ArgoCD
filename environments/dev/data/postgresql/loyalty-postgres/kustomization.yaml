@@ -4,10 +4,7 @@ kind: Kustomization
 namespace: data
 
 resources:
-  - order-postgres
-  - product-postgres
-  - loyalty-postgres
-  - payment-postgres
+  - ../../../../../base/data/postgresql/loyalty-postgres
 
 images:
   - name: postgres

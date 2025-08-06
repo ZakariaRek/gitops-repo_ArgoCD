@@ -1,0 +1,23 @@
+
+# base/data/postgresql/loyalty-postgres/Pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: loyalty-postgres-pv
+  labels:
+    app: loyalty-postgres
+    component: data
+    service: loyalty-service
+    tier: database
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: standard
+  volumeMode: Filesystem
+  # For local development (adjust based on your cluster setup)
+  hostPath:
+    path: /data/loyalty-postgres
+    type: DirectoryOrCreate
