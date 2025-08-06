@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zipkin-config
+  namespace: infrastructure
+  labels:
+    app: zipkin
+    component: infrastructure
+data:
+  application.yml: |
+    server:
+      port: 9411
+    
+    spring:
+      application:
+        name: zipkin-server
+      profiles:
+        active: docker
+    
+    # Zipkin configuration
+    zipkin:
+      collector:
+        # Enable collectors
+        rabbitmq:
+          enabled: false
+        kafka:
+          enabled: true
+          bootstrap-servers: kafka-service.data:9092
+          topic: zipkin
+        http:
+          enabled: true
+      storage:
+        type: mem
+        # For production, consider using elasticsearch or cassandra
+        # elasticsearch:
+        #   hosts: elasticsearch:9200
+        #   index: zipkin
+    
+    # Eureka client configuration for Zipkin
+    eureka:
+      instance:
+        hostname: ${ZIPKIN_INSTANCE_HOSTNAME:zipkin-server}
+        prefer-ip-address: false
+        lease-renewal-interval-in-seconds: 10
+        lease-expiration-duration-in-seconds: 20
+        health-check-url-path: /health
+        status-page-url-path: /info
+        home-page-url-path: /
+      client:
+        register-with-eureka: ${ZIPKIN_CLIENT_REGISTER_WITH_EUREKA:true}
+        fetch-registry: ${ZIPKIN_CLIENT_FETCH_REGISTRY:true}
+        service-url:
+          defaultZone: http://eureka-server.infrastructure:8761/eureka/
+        registry-fetch-interval-seconds: 5
+        initial-instance-info-replication-interval-seconds: 5
+        instance-info-replication-interval-seconds: 5
+    
+    management:
+      endpoints:
+        web:
+          exposure:
+            include: health,info,env,metrics,prometheus
+      endpoint:
+        health:
+          show-details: always
+        prometheus:
+          enabled: true
+      metrics:
+        export:
+          prometheus:
+            enabled: true
+    
+    logging:
+      level:
+        zipkin2: INFO
+        org.springframework.cloud.netflix.eureka: INFO

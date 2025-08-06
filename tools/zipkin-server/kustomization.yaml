@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - Deployment.yaml
+  - Service.yaml
+  - ConfigMap.yaml
+
+labels:
+  - pairs:
+      app: zipkin
+      component: infrastructure
+
+images:
+  - name: openzipkin/zipkin
+    newTag: latest
+
+namespace: infrastructure
+
+replicas:
+  - name: zipkin-server
+    count: 1

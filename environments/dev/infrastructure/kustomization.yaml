@@ -7,6 +7,7 @@ resources:
 # - simple-ingress
 - api-gateway
 - ingress-nginx
+- zipkin-server
 # - health-ingress
 # - default-http-backend
 

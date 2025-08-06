@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: zipkin-server
+  namespace: infrastructure
+  labels:
+    app: zipkin
+    component: infrastructure
+spec:
+  selector:
+    app: zipkin
+  ports:
+    - name: http
+      port: 9411
+      targetPort: 9411
+      protocol: TCP
+  type: ClusterIP
