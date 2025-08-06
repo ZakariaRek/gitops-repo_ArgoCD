@@ -9,6 +9,7 @@ resources:
 - payment-service
 - cart-service
 - loyalty-service
+- order-service
 
 # Use 'labels' instead of deprecated 'commonLabels'
 labels:
