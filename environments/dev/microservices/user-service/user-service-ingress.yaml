@@ -22,7 +22,7 @@ spec:
           service:
             name: user-service
             port:
-              number: 8080
+              number: 8081
   - host: user-api.nexus-commerce.local
     http:
       paths:
@@ -32,4 +32,4 @@ spec:
           service:
             name: user-service
             port:
-              number: 8080
+              number: 8081
