@@ -13,7 +13,6 @@ data:
     server.name: "kibana"
     server.host: "0.0.0.0"
     server.port: 5601
-    # FIX: This cannot be empty in Kibana 8.x
     server.publicBaseUrl: "http://kibana.infrastructure.svc.cluster.local:5601"
     
     # Elasticsearch configuration
@@ -34,13 +33,6 @@ data:
     xpack.monitoring.ui.container.elasticsearch.enabled: true
     xpack.monitoring.kibana.collection.enabled: false
     
-    # Features configuration
-    xpack.canvas.enabled: true
-    xpack.infra.enabled: true
-    xpack.apm.enabled: false
-    xpack.uptime.enabled: false
-    xpack.ml.enabled: false
-    
     # Logging configuration
     logging.root.level: info
     logging.appenders.default:
@@ -58,3 +50,15 @@ data:
     # Save objects
     savedObjects.maxImportPayloadBytes: 26214400
     savedObjects.maxImportExportSize: 10000
+    
+    # REMOVED INVALID CONFIGURATIONS:
+    # - xpack.canvas.enabled: true (not needed, enabled by default)
+    # - xpack.infra.enabled: true (not needed, enabled by default) 
+    # - xpack.apm.enabled: false (invalid key in 8.x)
+    # - xpack.uptime.enabled: false (invalid key in 8.x)
+    # - xpack.ml.enabled: false (invalid key in 8.x)
+    # - xpack.maps.enabled: true (not needed, enabled by default)
+    # - dashboard.defaultDarkMode: false (invalid key in 8.x)
+    
+    # Note: In Kibana 8.x, most xpack features are enabled by default
+    # and don't require explicit configuration unless you want to customize them
