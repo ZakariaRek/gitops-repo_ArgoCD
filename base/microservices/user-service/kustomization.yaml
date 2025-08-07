@@ -7,9 +7,11 @@ resources:
   - ConfigMap.yaml
   - Secret.yaml
 
-commonLabels:
-  app: user-service
-  component: microservices
+# Use modern 'labels' instead of deprecated 'commonLabels'
+labels:
+  - pairs:
+      app: user-service
+      component: microservices
 
 namespace: microservices
 
