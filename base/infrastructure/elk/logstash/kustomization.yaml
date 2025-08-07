@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: logstash
+  namespace: infrastructure
+
+resources:
+  - Deployment.yaml
+  - Service.yaml
+  - ConfigMap.yaml
+  - PipelineConfigMap.yaml
+
+labels:
+  - pairs:
+      app: logstash
+      component: infrastructure
+      tier: logging
+      version: "8.11.0"
+
+images:
+  - name: docker.elastic.co/logstash/logstash
+    newTag: 8.11.0
+
+namespace: infrastructure
+
+replicas:
+  - name: logstash
+    count: 1

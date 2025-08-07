@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline
+  namespace: infrastructure
+  labels:
+    app: logstash
+    component: infrastructure
+    tier: logging
+data:
+  logstash.conf: |
+    input {
+      kafka {
+        bootstrap_servers => "kafka-service.data.svc.cluster.local:9092"
+        topics => ["app-logs"]
+        codec => "json"
+        group_id => "logstash-microservices-group"
+        client_id => "logstash-consumer"
+        auto_offset_reset => "earliest"
+        consumer_threads => 1
+        decorate_events => true
+        security_protocol => "PLAINTEXT"
+      }
+    }
+
+    filter {
+      # Only process if JSON parsing succeeded
+      if "_jsonparsefailure" not in [tags] {
+
+        # Add processing timestamp
+        mutate {
+          add_field => { "logstash_processed_at" => "%{+yyyy-MM-dd HH:mm:ss}" }
+        }
+
+        # Fix timestamp parsing - handle multiple formats
+        if [@timestamp] {
+          date {
+            match => [
+              "@timestamp",
+              "ISO8601",
+              "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+              "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+              "yyyy-MM-dd'T'HH:mm:ss'Z'"
+            ]
+            target => "@timestamp"
+          }
+        }
+
+        # Ensure required fields exist
+        if ![level] {
+          mutate { add_field => { "level" => "INFO" } }
+        }
+        if ![service_name] {
+          mutate { add_field => { "service_name" => "unknown" } }
+        }
+        if ![logger_name] {
+          mutate { add_field => { "logger_name" => "unknown" } }
+        }
+
+        # Parse Kubernetes metadata if present
+        if [kubernetes] {
+          mutate {
+            add_field => { "k8s_namespace" => "%{[kubernetes][namespace]}" }
+            add_field => { "k8s_pod" => "%{[kubernetes][pod]}" }
+            add_field => { "k8s_container" => "%{[kubernetes][container]}" }
+          }
+        }
+
+        # Add environment tag
+        mutate {
+          add_field => { "environment" => "development" }
+          add_field => { "cluster" => "nexus-commerce" }
+        }
+      }
+    }
+
+    output {
+      elasticsearch {
+        hosts => ["elasticsearch.infrastructure.svc.cluster.local:9200"]
+        index => "microservices-logs-%{+yyyy.MM.dd}"
+        document_type => "_doc"
+        template_overwrite => true
+        template_name => "microservices-logs"
+        template => {
+          "index_patterns" => ["microservices-logs-*"]
+          "settings" => {
+            "number_of_shards" => 1
+            "number_of_replicas" => 0
+            "index.refresh_interval" => "5s"
+          }
+          "mappings" => {
+            "properties" => {
+              "@timestamp" => { "type" => "date" }
+              "level" => { "type" => "keyword" }
+              "service_name" => { "type" => "keyword" }
+              "logger_name" => { "type" => "keyword" }
+              "message" => { "type" => "text" }
+              "thread_name" => { "type" => "keyword" }
+              "environment" => { "type" => "keyword" }
+              "cluster" => { "type" => "keyword" }
+            }
+          }
+        }
+      }
+
+      # Debug output (remove in production)
+      stdout {
+        codec => rubydebug {
+          metadata => false
+        }
+      }
+    }

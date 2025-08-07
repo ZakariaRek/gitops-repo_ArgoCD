@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: infrastructure
+  labels:
+    app: elasticsearch
+    component: infrastructure
+    tier: logging
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+    - name: http
+      port: 9200
+      targetPort: 9200
+      protocol: TCP
+    - name: transport
+      port: 9300
+      targetPort: 9300
+      protocol: TCP
+  type: ClusterIP
