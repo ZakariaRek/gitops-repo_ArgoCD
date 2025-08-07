@@ -26,19 +26,28 @@ spec:
             - containerPort: 8081
               name: http
           env:
-            # === CRITICAL: JAVA_OPTS with System Properties (Same pattern as config-server) ===
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
             - name: JAVA_OPTS
-              value: >-
-                -Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m
-                -Dspring.kafka.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
-                -Dspring.kafka.producer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
-                -Dspring.kafka.consumer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
-                -Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
-                -Dspring.cloud.config.uri=http://config-server.infrastructure.svc.cluster.local:8888
-                -Dspring.profiles.active=docker,kafka
-                -Dlogging.level.com.netflix.eureka=DEBUG
-                -Dlogging.level.com.netflix.discovery=DEBUG
-                -Dlogging.level.org.springframework.cloud.netflix.eureka=DEBUG
+              value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m -Dspring.kafka.bootstrap-servers=kafka-service.data.svc.cluster.local:9092 -Dspring.kafka.producer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092 -Dspring.kafka.consumer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092"
+
+            # === CRITICAL: JAVA_OPTS with System Properties (Same pattern as config-server) ===
+#            - name: JAVA_OPTS
+#              value: >-
+#                -Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m
+#                -Dspring.kafka.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+#                -Dspring.kafka.producer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+#                -Dspring.kafka.consumer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+#                -Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
+#                -Dspring.cloud.config.uri=http://config-server.infrastructure.svc.cluster.local:8888
+#                -Dspring.profiles.active=docker,kafka
+#                -Dlogging.level.com.netflix.eureka=DEBUG
+#                -Dlogging.level.com.netflix.discovery=DEBUG
+#                -Dlogging.level.org.springframework.cloud.netflix.eureka=DEBUG
 
             # Spring Profiles (Same as config-server pattern)
             - name: SPRING_PROFILES_ACTIVE
@@ -86,15 +95,15 @@ spec:
             - name: SPRING_CONFIG_LOCATION
               value: "classpath:/,file:/config/"
 
-            # === KAFKA CONFIGURATION ===
-            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
-              value: "user-service-group"
+#            # === KAFKA CONFIGURATION ===
+#            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+#              value: "kafka-service.data.svc.cluster.local:9092"
+#            - name: SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS
+#              value: "kafka-service.data.svc.cluster.local:9092"
+#            - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
+#              value: "kafka-service.data.svc.cluster.local:9092"
+#            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+#              value: "user-service-group"
 
             # === MONGODB CONFIGURATION ===
             - name: SPRING_DATA_MONGODB_HOST
