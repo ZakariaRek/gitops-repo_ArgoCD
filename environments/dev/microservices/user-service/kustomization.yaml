@@ -20,67 +20,77 @@ replicas:
   - name: user-service
     count: 1
 
-# Use modern patches syntax instead of deprecated patchesStrategicMerge
-patches:
-  # Deployment patches
-  - target:
-      group: apps
-      version: v1
-      kind: Deployment
+# Fixed patches syntax - using strategic merge patch instead of JSON patch
+patchesStrategicMerge:
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
       name: user-service
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          deployment.kubernetes.io/revision: "1"
-          app.kubernetes.io/managed-by: "kustomize"
-      - op: add
-        path: /spec/template/metadata/annotations
-        value:
-          config.linkerd.io/skip-inbound-ports: "8081"
-          config.alpha.linkerd.io/proxy-wait-before-exit-seconds: "0"
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: SPRING_PROFILES_ACTIVE
-          value: "dev,docker,kafka"
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: SPRING_CLOUD_CONFIG_FAIL_FAST
-          value: "false"
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: SPRING_CLOUD_CONFIG_RETRY_ENABLED
-          value: "true"
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value:
-          name: LOGGING_LEVEL_ROOT
-          value: "DEBUG"
-      - op: replace
-        path: /spec/template/spec/containers/0/resources
-        value:
-          requests:
-            memory: "512Mi"
-            cpu: "200m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
-
-  # Service patch to use NodePort for dev
-  - target:
-      version: v1
-      kind: Service
+      annotations:
+        deployment.kubernetes.io/revision: "1"
+        app.kubernetes.io/managed-by: "kustomize"
+    spec:
+      template:
+        metadata:
+          annotations:
+            config.linkerd.io/skip-inbound-ports: "8081"
+            config.alpha.linkerd.io/proxy-wait-before-exit-seconds: "0"
+        spec:
+          containers:
+            - name: user-service
+              env:
+                # Development specific environment variables
+                - name: SPRING_PROFILES_ACTIVE
+                  value: "dev,docker,kafka"
+                - name: SPRING_CLOUD_CONFIG_FAIL_FAST
+                  value: "false"
+                - name: SPRING_CLOUD_CONFIG_RETRY_ENABLED
+                  value: "true"
+                - name: LOGGING_LEVEL_ROOT
+                  value: "DEBUG"
+                # Ensure Eureka connection (same as config-server pattern)
+                - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
+                  value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+                - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+                  value: "true"
+                - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+                  value: "true"
+                - name: EUREKA_CLIENT_FETCH_REGISTRY
+                  value: "true"
+                # Enhanced JAVA_OPTS with Eureka system properties (same as config-server)
+                - name: JAVA_OPTS
+                  value: >-
+                    -Xmx1024m -Xms512m -XX:MaxMetaspaceSize=256m
+                    -Dspring.kafka.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+                    -Dspring.kafka.producer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+                    -Dspring.kafka.consumer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
+                    -Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
+                    -Dspring.cloud.config.uri=http://config-server.infrastructure.svc.cluster.local:8888
+                    -Dspring.profiles.active=dev,docker,kafka
+                    -Dlogging.level.org.springframework.kafka=DEBUG
+                    -Dlogging.level.com.Ecommerce.User_Service=DEBUG
+                    -Dlogging.level.com.netflix.eureka=DEBUG
+                    -Dlogging.level.com.netflix.discovery=DEBUG
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "500m"
+  - |-
+    apiVersion: v1
+    kind: Service
+    metadata:
       name: user-service
-    patch: |-
-      - op: replace
-        path: /spec/type
-        value: NodePort
-      - op: add
-        path: /spec/ports/0/nodePort
-        value: 30081
+    spec:
+      type: NodePort
+      ports:
+        - name: http
+          port: 8081
+          targetPort: 8081
+          nodePort: 30081
 
 # Generate additional config for dev
 configMapGenerator:
@@ -88,5 +98,5 @@ configMapGenerator:
     literals:
       - SPRING_PROFILES_ACTIVE=dev,docker,kafka
       - LOG_LEVEL=DEBUG
-      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka/
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
       - SPRING_CLOUD_CONFIG_URI=http://config-server.infrastructure.svc.cluster.local:8888
