@@ -41,7 +41,7 @@ replicas:
 configMapGenerator:
   - name: elk-dev-config
     literals:
-      - LOG_LEVEL=INFO
+      - LOG_LEVEL=info  # ✅ Changed to lowercase
       - ENVIRONMENT=development
       - CLUSTER_NAME=nexus-commerce-logs-dev
       - ES_HEAP_SIZE=512m
@@ -108,7 +108,7 @@ patches:
                   - name: XPACK_MONITORING_ENABLED
                     value: "false"
                   - name: LOG_LEVEL
-                    value: "INFO"
+                    value: "info"  # ✅ Changed to lowercase
                 resources:
                   requests:
                     memory: "512Mi"
@@ -119,7 +119,6 @@ patches:
     target:
       kind: Deployment
       name: logstash
-
   # Kibana development patches - MAJOR FIXES APPLIED
   - patch: |-
       apiVersion: apps/v1
