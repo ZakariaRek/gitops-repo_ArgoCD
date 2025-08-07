@@ -15,21 +15,29 @@ data:
     server.port: 5601
     server.publicBaseUrl: "http://kibana.observability.svc.cluster.local:5601"
     
-    # Elasticsearch configuration - FIXED: Cleaned up for 8.x
+    # Elasticsearch configuration
     elasticsearch.hosts: ["http://elasticsearch.observability.svc.cluster.local:9200"]
+    elasticsearch.requestTimeout: 90000
+    elasticsearch.pingTimeout: 20000
     
-    # Security configuration - FIXED: Properly disabled
+    # Security configuration - FIXED: Properly disabled for 8.x
     xpack.security.enabled: false
-    xpack.encryptedSavedObjects.encryptionKey: "something_at_least_32_characters_long_for_development_only_use"
+    xpack.encryptedSavedObjects.encryptionKey: "a_very_long_random_key_that_is_at_least_32_characters_long_for_dev_use_only"
+    
+    # REMOVED: kibana.index (deprecated in 8.x)
+    # kibana.index: ".kibana" ❌ THIS CAUSES THE ERROR
     
     # Monitoring configuration - FIXED: Updated for 8.x compatibility
     monitoring.ui.container.elasticsearch.enabled: true
     monitoring.kibana.collection.enabled: false
     
-    # Logging configuration
+    # Logging configuration - FIXED: Updated format for 8.x
     logging:
       root:
         level: info
+      loggers:
+        - name: elasticsearch.query
+          level: debug
       appenders:
         default:
           type: console
@@ -39,16 +47,14 @@ data:
     # UI configuration
     i18n.locale: "en"
     
-    # Index patterns
-    kibana.index: ".kibana"
-    
-    # Save objects
+    # Save objects configuration
     savedObjects.maxImportPayloadBytes: 26214400
     savedObjects.maxImportExportSize: 10000
     
     # Path configuration
     path.data: /usr/share/kibana/data
     
-    # FIXED: Removed problematic 8.x incompatible settings
-    # - elasticsearch.serviceAccountToken (causes conflicts)
-    # - elasticsearch.ssl.verificationMode (not needed when security disabled)
+    # Performance settings for development
+    elasticsearch.shardTimeout: 30000
+    server.keepAlive: true
+    server.keepAliveTimeout: 120000

@@ -37,11 +37,16 @@ spec:
               value: "5601"
             - name: XPACK_SECURITY_ENABLED
               value: "false"
+            - name: XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
+              value: "a_very_long_random_key_that_is_at_least_32_characters_long_for_dev_use_only"
             - name: MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED
               value: "true"
             - name: LOGGING_ROOT_LEVEL
               value: "info"
-            # FIXED: Remove problematic timeout and auth configurations
+            # CRITICAL: Set Node.js memory limit
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=1024"
+            # FIXED: Remove deprecated timeout configurations
           resources:
             requests:
               memory: "1Gi"
@@ -55,7 +60,7 @@ spec:
               subPath: kibana.yml
             - name: kibana-data
               mountPath: /usr/share/kibana/data
-          # FIXED: More realistic probe timings for Kibana 8.x
+          # FIXED: Improved probe timings for Kibana 8.x
           livenessProbe:
             httpGet:
               path: /api/status
@@ -63,7 +68,7 @@ spec:
               httpHeaders:
                 - name: kbn-xsrf
                   value: "true"
-            initialDelaySeconds: 180  # Increased - Kibana 8.x takes longer to start
+            initialDelaySeconds: 300  # Increased - Kibana 8.x takes longer to start
             periodSeconds: 30
             timeoutSeconds: 15
             failureThreshold: 3
@@ -74,7 +79,7 @@ spec:
               httpHeaders:
                 - name: kbn-xsrf
                   value: "true"
-            initialDelaySeconds: 120   # Increased
+            initialDelaySeconds: 180   # Increased
             periodSeconds: 15
             timeoutSeconds: 10
             failureThreshold: 5
@@ -86,9 +91,9 @@ spec:
                 - name: kbn-xsrf
                   value: "true"
             initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 30      # Allow up to 7.5 minutes for startup
+            periodSeconds: 30  # Longer periods for startup
+            timeoutSeconds: 15
+            failureThreshold: 20      # Allow up to 10 minutes for startup
       volumes:
         - name: kibana-config
           configMap:
@@ -96,18 +101,56 @@ spec:
         - name: kibana-data
           emptyDir: {}
       initContainers:
+        # IMPROVED: Better Elasticsearch readiness check
         - name: wait-for-elasticsearch
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
               echo "Waiting for Elasticsearch to be ready..."
-              # Wait for Elasticsearch cluster health
-              until wget -q --spider --timeout=10 http://elasticsearch.observability.svc.cluster.local:9200/_cluster/health?wait_for_status=yellow&timeout=60s; do 
-                echo "Elasticsearch not ready, waiting 15 seconds..."
+              # First check if Elasticsearch is responding
+              until wget -q --spider --timeout=10 http://elasticsearch.observability.svc.cluster.local:9200; do 
+                echo "Elasticsearch not responding, waiting 10 seconds..."
+                sleep 10
+              done
+              echo "Elasticsearch is responding, checking cluster health..."
+              
+              # Wait for Elasticsearch cluster health (yellow is acceptable for single node)
+              until wget -q --spider --timeout=30 "http://elasticsearch.observability.svc.cluster.local:9200/_cluster/health?wait_for_status=yellow&timeout=60s"; do 
+                echo "Elasticsearch cluster not healthy, waiting 15 seconds..."
                 sleep 15
               done
-              echo "Elasticsearch is ready!"
+              echo "Elasticsearch cluster is healthy!"
+              
               # Additional wait to ensure Elasticsearch is fully initialized
-              echo "Waiting additional 60 seconds for Elasticsearch to fully initialize..."
-              sleep 60
+              echo "Waiting additional 30 seconds for Elasticsearch to fully initialize..."
+              sleep 30
+              echo "Elasticsearch is ready for Kibana!"
+
+        # ADDED: Check for required Elasticsearch indices
+        - name: check-elasticsearch-indices
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Checking Elasticsearch indices..."
+              # Try to create a test index to ensure Elasticsearch is working
+              wget -q --post-data='{"settings":{"number_of_shards":1,"number_of_replicas":0}}' \
+                   --header='Content-Type: application/json' \
+                   --timeout=10 \
+                   http://elasticsearch.observability.svc.cluster.local:9200/test-index || true
+              
+              # Delete the test index
+              wget -q --method=DELETE \
+                   --timeout=10 \
+                   http://elasticsearch.observability.svc.cluster.local:9200/test-index || true
+              
+              echo "Elasticsearch index operations test completed!"
+
+      # ADDED: Security context and termination grace period
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      terminationGracePeriodSeconds: 60

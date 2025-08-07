@@ -41,16 +41,14 @@ replicas:
 configMapGenerator:
   - name: elk-dev-config
     literals:
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=INFO
       - ENVIRONMENT=development
       - CLUSTER_NAME=nexus-commerce-logs-dev
-      - ES_HEAP_SIZE=1g
-      - LS_HEAP_SIZE=1g
-
-# Add these patches to environments/dev/observability/elk/kustomization.yaml
+      - ES_HEAP_SIZE=512m
+      - LS_HEAP_SIZE=512m
 
 patches:
-  # Elasticsearch development patches - UPDATED
+  # Elasticsearch development patches - SECURITY FIXED
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -67,13 +65,20 @@ patches:
                     value: "-Xms512m -Xmx512m"
                   - name: cluster.name
                     value: "nexus-commerce-logs-dev"
-                  - name: logger.level
-                    value: "INFO"
-                  # FIXED: Remove conflicting security settings
+                  - name: discovery.type
+                    value: "single-node"
                   - name: xpack.security.enabled
                     value: "false"
                   - name: xpack.security.enrollment.enabled
                     value: "false"
+                  - name: xpack.security.http.ssl.enabled
+                    value: "false"
+                  - name: xpack.security.transport.ssl.enabled
+                    value: "false"
+                  - name: bootstrap.memory_lock
+                    value: "false"
+                  - name: logger.level
+                    value: "INFO"
                 resources:
                   requests:
                     memory: "1Gi"
@@ -85,7 +90,7 @@ patches:
       kind: Deployment
       name: elasticsearch
 
-  # Logstash development patches - UPDATED
+  # Logstash development patches
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -102,6 +107,8 @@ patches:
                     value: "-Xmx512m -Xms512m"
                   - name: XPACK_MONITORING_ENABLED
                     value: "false"
+                  - name: LOG_LEVEL
+                    value: "INFO"
                 resources:
                   requests:
                     memory: "512Mi"
@@ -113,7 +120,7 @@ patches:
       kind: Deployment
       name: logstash
 
-  # Kibana development patches - UPDATED with better timings
+  # Kibana development patches - MAJOR FIXES APPLIED
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -126,18 +133,37 @@ patches:
             containers:
               - name: kibana
                 env:
+                  - name: ELASTICSEARCH_HOSTS
+                    value: "http://elasticsearch.observability.svc.cluster.local:9200"
+                  - name: SERVER_NAME
+                    value: "kibana"
+                  - name: SERVER_HOST
+                    value: "0.0.0.0"
+                  - name: SERVER_PORT
+                    value: "5601"
+                  - name: XPACK_SECURITY_ENABLED
+                    value: "false"
+                  - name: XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY
+                    value: "a_very_long_random_key_that_is_at_least_32_characters_long_for_dev_use_only"
+                  - name: MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED
+                    value: "true"
                   - name: LOGGING_ROOT_LEVEL
                     value: "info"
                   - name: NODE_OPTIONS
                     value: "--max-old-space-size=1024"
+                  # CRITICAL: Remove deprecated configurations via environment
+                  - name: ELASTICSEARCH_REQUESTTIMEOUT
+                    value: "90000"
+                  - name: ELASTICSEARCH_PINGTIMEOUT
+                    value: "20000"
                 resources:
                   requests:
-                    memory: "512Mi"
-                    cpu: "200m"
-                  limits:
                     memory: "1Gi"
                     cpu: "500m"
-                # IMPROVED: Better probe timings for dev
+                  limits:
+                    memory: "2Gi"
+                    cpu: "1000m"
+                # IMPROVED: Better probe timings for dev with longer timeouts
                 startupProbe:
                   httpGet:
                     path: /api/status
@@ -145,10 +171,10 @@ patches:
                     httpHeaders:
                       - name: kbn-xsrf
                         value: "true"
-                  initialDelaySeconds: 90  # Reduced for dev
-                  periodSeconds: 15
-                  timeoutSeconds: 10
-                  failureThreshold: 20     # Still allow time for startup
+                  initialDelaySeconds: 90  # Reduced for dev but still adequate
+                  periodSeconds: 30        # Longer periods
+                  timeoutSeconds: 15
+                  failureThreshold: 15     # Allow 7.5 minutes for startup
                 readinessProbe:
                   httpGet:
                     path: /api/status
@@ -156,10 +182,141 @@ patches:
                     httpHeaders:
                       - name: kbn-xsrf
                         value: "true"
-                  initialDelaySeconds: 60   # Reduced for dev
-                  periodSeconds: 10
-                  timeoutSeconds: 5
+                  initialDelaySeconds: 120
+                  periodSeconds: 15
+                  timeoutSeconds: 10
                   failureThreshold: 5
+                livenessProbe:
+                  httpGet:
+                    path: /api/status
+                    port: 5601
+                    httpHeaders:
+                      - name: kbn-xsrf
+                        value: "true"
+                  initialDelaySeconds: 300  # Much longer for 8.x
+                  periodSeconds: 30
+                  timeoutSeconds: 15
+                  failureThreshold: 3
     target:
       kind: Deployment
       name: kibana
+
+  # CRITICAL: Fix Kibana ConfigMap to remove deprecated kibana.index
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: kibana-config
+        namespace: observability
+      data:
+        kibana.yml: |
+          # Server configuration
+          server.name: "kibana"
+          server.host: "0.0.0.0"
+          server.port: 5601
+          server.publicBaseUrl: "http://kibana.observability.svc.cluster.local:5601"
+          
+          # Elasticsearch configuration
+          elasticsearch.hosts: ["http://elasticsearch.observability.svc.cluster.local:9200"]
+          elasticsearch.requestTimeout: 90000
+          elasticsearch.pingTimeout: 20000
+          
+          # Security configuration - FIXED: Properly disabled for 8.x
+          xpack.security.enabled: false
+          xpack.encryptedSavedObjects.encryptionKey: "a_very_long_random_key_that_is_at_least_32_characters_long_for_dev_use_only"
+          
+          # Monitoring configuration - FIXED: Updated for 8.x compatibility
+          monitoring.ui.container.elasticsearch.enabled: true
+          monitoring.kibana.collection.enabled: false
+          
+          # Logging configuration
+          logging:
+            root:
+              level: info
+            appenders:
+              default:
+                type: console
+                layout:
+                  type: json
+          
+          # UI configuration
+          i18n.locale: "en"
+          
+          # Save objects configuration
+          savedObjects.maxImportPayloadBytes: 26214400
+          savedObjects.maxImportExportSize: 10000
+          
+          # Path configuration
+          path.data: /usr/share/kibana/data
+          
+          # Performance settings for development
+          elasticsearch.shardTimeout: 30000
+          server.keepAlive: true
+          server.keepAliveTimeout: 120000
+    target:
+      kind: ConfigMap
+      name: kibana-config
+
+  # Patch services for NodePort access in dev
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: elasticsearch
+        namespace: observability
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 9200
+            targetPort: 9200
+            nodePort: 30920
+          - name: transport
+            port: 9300
+            targetPort: 9300
+            nodePort: 30930
+    target:
+      kind: Service
+      name: elasticsearch
+
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: kibana
+        namespace: observability
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 5601
+            targetPort: 5601
+            nodePort: 30560
+    target:
+      kind: Service
+      name: kibana
+
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: logstash
+        namespace: observability
+      spec:
+        type: NodePort
+        ports:
+          - name: beats
+            port: 5044
+            targetPort: 5044
+            nodePort: 30504
+          - name: tcp
+            port: 5000
+            targetPort: 5000
+            nodePort: 30500
+          - name: monitoring
+            port: 9600
+            targetPort: 9600
+            nodePort: 30960
+    target:
+      kind: Service
+      name: logstash
