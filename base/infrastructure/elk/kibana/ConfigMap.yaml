@@ -58,9 +58,3 @@ data:
     # Save objects
     savedObjects.maxImportPayloadBytes: 26214400
     savedObjects.maxImportExportSize: 10000
-    
-    # Maps (if using)
-    xpack.maps.enabled: true
-    
-    # Dashboard settings
-    dashboard.defaultDarkMode: false
