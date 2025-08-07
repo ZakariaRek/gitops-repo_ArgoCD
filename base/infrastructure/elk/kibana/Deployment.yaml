@@ -1,98 +1,124 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kibana
+  name: logstash
   namespace: infrastructure
   labels:
-    app: kibana
+    app: logstash
     component: infrastructure
     tier: logging
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kibana
+      app: logstash
   template:
     metadata:
       labels:
-        app: kibana
+        app: logstash
         component: infrastructure
         tier: logging
     spec:
       containers:
-        - name: kibana
-          image: docker.elastic.co/kibana/kibana:8.11.0
+        - name: logstash
+          image: docker.elastic.co/logstash/logstash:8.11.0
           ports:
-            - containerPort: 5601
-              name: http
+            - containerPort: 5044
+              name: beats
+            - containerPort: 5000
+              name: tcp
+            - containerPort: 9600
+              name: monitoring
           env:
-            - name: ELASTICSEARCH_HOSTS
-              value: "http://elasticsearch.infrastructure.svc.cluster.local:9200"
-            - name: SERVER_NAME
-              value: "kibana"
-            - name: SERVER_HOST
-              value: "0.0.0.0"
-            - name: SERVER_PORT
-              value: "5601"
-            - name: ELASTICSEARCH_USERNAME
-              value: ""
-            - name: ELASTICSEARCH_PASSWORD
-              value: ""
-            - name: XPACK_SECURITY_ENABLED
+            - name: LS_JAVA_OPTS
+              value: "-Xmx1g -Xms1g"
+            - name: XPACK_MONITORING_ENABLED
               value: "false"
-            - name: XPACK_MONITORING_UI_CONTAINER_ELASTICSEARCH_ENABLED
-              value: "true"
-            - name: LOGGING_ROOT_LEVEL
-              value: "info"
+            - name: XPACK_MONITORING_ELASTICSEARCH_HOSTS
+              value: "http://elasticsearch.infrastructure.svc.cluster.local:9200"
           resources:
             requests:
+              memory: "1.5Gi"
+              cpu: "500m"
+            limits:
               memory: "2Gi"
               cpu: "1000m"
-            limits:
-              memory: "4Gi"
-              cpu: "2000m"
           volumeMounts:
-            - name: kibana-config
-              mountPath: /usr/share/kibana/config/kibana.yml
-              subPath: kibana.yml
-          # FIXED: Much more generous probe timings for Kibana 8.x
+            # Mount config to a writable directory
+            - name: logstash-config-volume
+              mountPath: /usr/share/logstash/config
+            - name: logstash-pipeline
+              mountPath: /usr/share/logstash/pipeline/logstash.conf
+              subPath: logstash.conf
           livenessProbe:
             httpGet:
-              path: /api/status
-              port: 5601
-            initialDelaySeconds: 300  # Wait 5 minutes before first check
-            periodSeconds: 60         # Check every minute
-            timeoutSeconds: 30        # Allow 30 seconds for response
-            failureThreshold: 5       # Allow 5 failures before restart
+              path: /
+              port: 9600
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /api/status
-              port: 5601
-            initialDelaySeconds: 180  # Wait 3 minutes before first check
-            periodSeconds: 30         # Check every 30 seconds
-            timeoutSeconds: 15        # Allow 15 seconds for response
-            failureThreshold: 5       # Allow 5 failures before marking unready
+              path: /
+              port: 9600
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           startupProbe:
             httpGet:
-              path: /api/status
-              port: 5601
-            initialDelaySeconds: 60   # Wait 1 minute before starting checks
-            periodSeconds: 30         # Check every 30 seconds
-            timeoutSeconds: 15        # Allow 15 seconds for response
-            failureThreshold: 40      # Allow up to 20 minutes total startup time (40 * 30s)
+              path: /
+              port: 9600
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 20
       volumes:
-        - name: kibana-config
+        # Create a writable volume for the config directory
+        - name: logstash-config-volume
+          emptyDir: {}
+        - name: logstash-config-source
           configMap:
-            name: kibana-config
+            name: logstash-config
+        - name: logstash-pipeline
+          configMap:
+            name: logstash-pipeline
       initContainers:
+        # Copy the config from ConfigMap to writable volume
+        - name: setup-config
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Copying Logstash configuration..."
+              cp /tmp/config-source/* /usr/share/logstash/config/
+              ls -la /usr/share/logstash/config/
+              echo "Configuration setup complete!"
+          volumeMounts:
+            - name: logstash-config-source
+              mountPath: /tmp/config-source
+            - name: logstash-config-volume
+              mountPath: /usr/share/logstash/config
         - name: wait-for-elasticsearch
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
-              echo "Waiting for Elasticsearch to be ready..."
-              until wget -q --spider http://elasticsearch.infrastructure.svc.cluster.local:9200/_cluster/health; do 
+              echo "Waiting for Elasticsearch..."
+              until nc -z elasticsearch.infrastructure.svc.cluster.local 9200; do 
                 echo "Elasticsearch not ready, waiting..."
-                sleep 15
+                sleep 10
               done
               echo "Elasticsearch is ready!"
+        - name: wait-for-kafka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Kafka..."
+              until nc -z kafka-service.data.svc.cluster.local 9092; do 
+                echo "Kafka not ready, waiting..."
+                sleep 10
+              done
+              echo "Kafka is ready!"
