@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  namespace: infrastructure
+  labels:
+    app: logstash
+    component: infrastructure
+    tier: logging
+data:
+  logstash.yml: |
+    http.host: "0.0.0.0"
+    http.port: 9600
+    path.config: /usr/share/logstash/pipeline
+    path.data: /usr/share/logstash/data
+    pipeline.workers: 2
+    pipeline.batch.size: 125
+    pipeline.batch.delay: 50
+    queue.type: memory
+    queue.page_capacity: 64mb
+    queue.max_events: 0
+    queue.max_bytes: 1024mb
+    dead_letter_queue.enable: false
+    log.level: info
+    xpack.monitoring.enabled: false
+    config.reload.automatic: true
+    config.reload.interval: 3s

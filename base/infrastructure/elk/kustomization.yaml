@@ -1,0 +1,37 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: elk-stack
+  namespace: infrastructure
+
+resources:
+  - elasticsearch
+  - logstash
+  - kibana
+
+labels:
+  - pairs:
+      stack: elk
+      component: infrastructure
+      tier: logging
+      managed-by: argocd
+
+namespace: infrastructure
+
+# Common configurations for the entire stack
+configMapGenerator:
+  - name: elk-common-config
+    literals:
+      - CLUSTER_NAME=nexus-commerce-logs
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+
+# Image versions
+images:
+  - name: docker.elastic.co/elasticsearch/elasticsearch
+    newTag: 8.11.0
+  - name: docker.elastic.co/logstash/logstash
+    newTag: 8.11.0
+  - name: docker.elastic.co/kibana/kibana
+    newTag: 8.11.0
