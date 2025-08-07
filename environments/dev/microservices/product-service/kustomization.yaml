@@ -1,19 +1,107 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-resources:
-- ../../../../base/microservices/product-service
+metadata:
+  name: product-service-dev
+  namespace: microservices
 
+# Reference the base product-service configuration
+resources:
+  - ../../../../base/microservices/product-service
+  - product-service-ingress.yaml
+
+# Use microservices namespace
 namespace: microservices
 
+# Add environment-specific labels
 labels:
-- pairs:
-    environment: dev
+  - pairs:
+      environment: dev
+      tier: development
 
+# Use development image tag
 images:
-- name: yahyazakaria123/ecommerce-app-product-service
-  newTag: latest
+  - name: yahyazakaria123/ecommerce-app-product-service
+    newTag: latest  # You can change to dev-latest when available
 
+# Reduce replicas for dev (save resources)
 replicas:
-- name: product-service
-  count: 1
+  - name: product-service
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: product-service-dev-config
+    literals:
+      - LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=dev,docker,kafka
+      - ENABLE_REQUEST_LOGGING=true
+      - PRODUCT_CACHE_TTL=300
+      - ENABLE_SQL_LOGGING=true
+
+# Use the new patches syntax for better compatibility
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: product-service
+        namespace: microservices
+      spec:
+        template:
+          spec:
+            containers:
+              - name: product-service
+                env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: "dev,docker,kafka"
+                  - name: LOG_LEVEL
+                    value: "DEBUG"
+                  - name: ENABLE_REQUEST_LOGGING
+                    value: "true"
+                  # Dev-specific database configuration
+                  - name: SPRING_DATASOURCE_URL
+                    value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb_dev"
+                  - name: SPRING_DATA_REDIS_DATABASE
+                    value: "2"
+                  # Dev-specific product configuration
+                  - name: PRODUCT_CACHE_TTL
+                    value: "300"
+                  - name: ENABLE_SQL_LOGGING
+                    value: "true"
+                  # Relaxed timeouts for dev
+                  - name: SPRING_DATA_REDIS_TIMEOUT
+                    value: "5000ms"
+                  # Enable SQL logging for dev
+                  - name: SPRING_JPA_SHOW_SQL
+                    value: "true"
+                  - name: LOGGING_LEVEL_ORG_HIBERNATE_SQL
+                    value: "DEBUG"
+                resources:
+                  requests:
+                    memory: "256Mi"
+                    cpu: "100m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+    target:
+      kind: Deployment
+      name: product-service
+
+  # Patch the service to use NodePort for easy access in dev
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: product-service
+        namespace: microservices
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 8081
+            targetPort: 8081
+            nodePort: 30081
+    target:
+      kind: Service
+      name: product-service
