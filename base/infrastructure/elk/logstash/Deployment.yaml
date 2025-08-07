@@ -22,6 +22,10 @@ spec:
       containers:
         - name: logstash
           image: docker.elastic.co/logstash/logstash:8.11.0
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
           ports:
             - containerPort: 5044
               name: beats
@@ -93,6 +97,9 @@ spec:
             - |
               echo "Copying Logstash configuration..."
               cp /tmp/config-source/* /usr/share/logstash/config/
+              # Set proper ownership and permissions for logstash user (uid 1000)
+              chown -R 1000:1000 /usr/share/logstash/config/
+              chmod -R 644 /usr/share/logstash/config/*
               ls -la /usr/share/logstash/config/
               echo "Configuration setup complete!"
           volumeMounts:
