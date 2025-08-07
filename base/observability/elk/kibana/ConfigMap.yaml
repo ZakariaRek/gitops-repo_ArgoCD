@@ -20,24 +20,18 @@ data:
     elasticsearch.requestTimeout: 90000
     elasticsearch.pingTimeout: 20000
     
-    # Security configuration - FIXED: Properly disabled for 8.x
+    # Security configuration - Properly disabled for 8.x
     xpack.security.enabled: false
     xpack.encryptedSavedObjects.encryptionKey: "a_very_long_random_key_that_is_at_least_32_characters_long_for_dev_use_only"
     
-    # REMOVED: kibana.index (deprecated in 8.x)
-    # kibana.index: ".kibana" ❌ THIS CAUSES THE ERROR
-    
-    # Monitoring configuration - FIXED: Updated for 8.x compatibility
+    # Monitoring configuration - Updated for 8.x compatibility
     monitoring.ui.container.elasticsearch.enabled: true
     monitoring.kibana.collection.enabled: false
     
-    # Logging configuration - FIXED: Updated format for 8.x
+    # Logging configuration
     logging:
       root:
         level: info
-      loggers:
-        - name: elasticsearch.query
-          level: debug
       appenders:
         default:
           type: console
@@ -54,7 +48,8 @@ data:
     # Path configuration
     path.data: /usr/share/kibana/data
     
-    # Performance settings for development
-    elasticsearch.shardTimeout: 30000
-    server.keepAlive: true
-    server.keepAliveTimeout: 120000
+    # REMOVED INVALID CONFIGURATIONS:
+    # ❌ kibana.index (deprecated in 8.x)
+    # ❌ server.keepAlive (not valid in 8.11.0)
+    # ❌ server.keepAliveTimeout (not valid in 8.11.0)
+    # ❌ elasticsearch.shardTimeout (not valid in 8.11.0)
