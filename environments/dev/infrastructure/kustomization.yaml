@@ -8,7 +8,6 @@ resources:
 - api-gateway
 - ingress-nginx
 - zipkin-server
-- elk
 # - health-ingress
 # - default-http-backend
 
