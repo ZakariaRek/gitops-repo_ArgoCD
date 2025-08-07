@@ -201,7 +201,7 @@ patches:
       kind: Deployment
       name: kibana
 
-  # CRITICAL: Fix Kibana ConfigMap to remove deprecated kibana.index
+  # CRITICAL: Fix Kibana ConfigMap - Remove ALL invalid configurations
   - patch: |-
       apiVersion: v1
       kind: ConfigMap
@@ -249,10 +249,11 @@ patches:
           # Path configuration
           path.data: /usr/share/kibana/data
           
-          # Performance settings for development
-          elasticsearch.shardTimeout: 30000
-          server.keepAlive: true
-          server.keepAliveTimeout: 120000
+          # REMOVED INVALID CONFIGURATIONS FOR 8.11.0:
+          # ❌ kibana.index (deprecated)
+          # ❌ server.keepAlive (not valid)
+          # ❌ server.keepAliveTimeout (not valid)  
+          # ❌ elasticsearch.shardTimeout (not valid)
     target:
       kind: ConfigMap
       name: kibana-config
