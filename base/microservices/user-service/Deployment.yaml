@@ -237,17 +237,7 @@ spec:
               exit 0
 
         # Wait for MongoDB
-        - name: wait-for-mongodb
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Testing MongoDB connectivity..."
-              until nc -z user-mongodb-headless.data.svc.cluster.local 27017; do
-                echo "MongoDB not ready, waiting..."
-                sleep 3
-              done
-              echo "MongoDB is reachable!"
+
 
         # Wait for Kafka
         - name: wait-for-kafka
