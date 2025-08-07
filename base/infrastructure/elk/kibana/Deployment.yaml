@@ -26,7 +26,7 @@ spec:
             - containerPort: 5601
               name: http
           env:
-            # FIXED: Cleaned up environment variables for 8.x compatibility
+            # FIXED: Cleaned up environment variables for 8.x
             - name: ELASTICSEARCH_HOSTS
               value: "http://elasticsearch.infrastructure.svc.cluster.local:9200"
             - name: SERVER_NAME
@@ -41,7 +41,7 @@ spec:
               value: "true"
             - name: LOGGING_ROOT_LEVEL
               value: "info"
-            # Removed problematic timeout configurations
+            # FIXED: Remove problematic timeout and auth configurations
           resources:
             requests:
               memory: "1Gi"
@@ -63,9 +63,9 @@ spec:
               httpHeaders:
                 - name: kbn-xsrf
                   value: "true"
-            initialDelaySeconds: 120  # Reduced from 300
+            initialDelaySeconds: 180  # Increased - Kibana 8.x takes longer to start
             periodSeconds: 30
-            timeoutSeconds: 10
+            timeoutSeconds: 15
             failureThreshold: 3
           readinessProbe:
             httpGet:
@@ -74,9 +74,9 @@ spec:
               httpHeaders:
                 - name: kbn-xsrf
                   value: "true"
-            initialDelaySeconds: 60   # Reduced from 180
-            periodSeconds: 10
-            timeoutSeconds: 5
+            initialDelaySeconds: 120   # Increased
+            periodSeconds: 15
+            timeoutSeconds: 10
             failureThreshold: 5
           startupProbe:
             httpGet:
@@ -85,10 +85,10 @@ spec:
               httpHeaders:
                 - name: kbn-xsrf
                   value: "true"
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 20      # Allow up to 3.5 minutes for startup
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 30      # Allow up to 7.5 minutes for startup
       volumes:
         - name: kibana-config
           configMap:
@@ -102,11 +102,12 @@ spec:
           args:
             - |
               echo "Waiting for Elasticsearch to be ready..."
-              until wget -q --spider --timeout=10 http://elasticsearch.infrastructure.svc.cluster.local:9200/_cluster/health?wait_for_status=yellow&timeout=30s; do 
-                echo "Elasticsearch not ready, waiting 10 seconds..."
-                sleep 10
+              # Wait for Elasticsearch cluster health
+              until wget -q --spider --timeout=10 http://elasticsearch.infrastructure.svc.cluster.local:9200/_cluster/health?wait_for_status=yellow&timeout=60s; do 
+                echo "Elasticsearch not ready, waiting 15 seconds..."
+                sleep 15
               done
               echo "Elasticsearch is ready!"
               # Additional wait to ensure Elasticsearch is fully initialized
-              echo "Waiting additional 30 seconds for Elasticsearch to fully initialize..."
-              sleep 30
+              echo "Waiting additional 60 seconds for Elasticsearch to fully initialize..."
+              sleep 60

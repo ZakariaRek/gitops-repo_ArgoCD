@@ -15,18 +15,14 @@ data:
     server.port: 5601
     server.publicBaseUrl: "http://kibana.infrastructure.svc.cluster.local:5601"
     
-    # Elasticsearch configuration - FIXED: Removed invalid keys
+    # Elasticsearch configuration - FIXED: Cleaned up for 8.x
     elasticsearch.hosts: ["http://elasticsearch.infrastructure.svc.cluster.local:9200"]
-    elasticsearch.username: ""
-    elasticsearch.password: ""
-    # Removed: elasticsearch.requestTimeout, elasticsearch.shardTimeout, elasticsearch.pingTimeout, elasticsearch.startupTimeout
-    # These are not valid in Kibana 8.x
     
-    # Security configuration (disabled for development)
+    # Security configuration - FIXED: Properly disabled
     xpack.security.enabled: false
-    xpack.encryptedSavedObjects.encryptionKey: "something_at_least_32_characters_long"
+    xpack.encryptedSavedObjects.encryptionKey: "something_at_least_32_characters_long_for_development_only_use"
     
-    # Monitoring configuration - FIXED: Updated for 8.x
+    # Monitoring configuration - FIXED: Updated for 8.x compatibility
     monitoring.ui.container.elasticsearch.enabled: true
     monitoring.kibana.collection.enabled: false
     
@@ -53,6 +49,6 @@ data:
     # Path configuration
     path.data: /usr/share/kibana/data
     
-    # Elasticsearch client configuration for 8.x
-    elasticsearch.serviceAccountToken: ""
-    elasticsearch.ssl.verificationMode: none
+    # FIXED: Removed problematic 8.x incompatible settings
+    # - elasticsearch.serviceAccountToken (causes conflicts)
+    # - elasticsearch.ssl.verificationMode (not needed when security disabled)

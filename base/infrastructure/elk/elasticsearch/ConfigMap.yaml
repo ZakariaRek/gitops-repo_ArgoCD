@@ -18,11 +18,12 @@ data:
     # Discovery
     discovery.type: single-node
     
-    # Security (disabled for development)
+    # Security Configuration - FIXED: Properly disabled for development
     xpack.security.enabled: false
     xpack.security.enrollment.enabled: false
     xpack.security.http.ssl.enabled: false
     xpack.security.transport.ssl.enabled: false
+    xpack.security.authc.api_key.enabled: false
     
     # Monitoring
     xpack.monitoring.collection.enabled: true
@@ -50,3 +51,6 @@ data:
     # Logging
     logger.level: INFO
     logger.deprecation.level: WARN
+    
+    # Additional stability settings
+    cluster.routing.allocation.disk.threshold_enabled: false
