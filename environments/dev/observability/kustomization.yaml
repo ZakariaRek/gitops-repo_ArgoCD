@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Include the individual service overlays
+resources:
+    - elk
+
+# Use 'labels' instead of deprecated 'commonLabels'
+labels:
+- pairs:
+    environment: dev
+    managed-by: argocd
+    platform: nexus-commerce
+
+namespace: observability
