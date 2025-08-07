@@ -18,7 +18,7 @@ data:
         name: user-service
       cloud:
         config:
-          uri: http://config-server.infrastructure.svc.cluster.local:8888
+          uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
           enabled: true
           discovery:
             enabled: false
@@ -43,29 +43,46 @@ data:
           uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice:userservice123@user-mongodb-headless.data.svc.cluster.local:27017/User-service}
           authentication-database: ${SPRING_DATA_MONGODB_AUTH_DATABASE:admin}
       
-      # Kafka Configuration
+      # CRITICAL: Kafka Configuration - Use Kubernetes service
       kafka:
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
         producer:
+          bootstrap-servers: ${SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-          bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+          properties:
+            spring.json.add.type.headers: false
+            acks: all
+            retries: 3
+            enable.idempotence: true
+            max.in.flight.requests.per.connection: 1
         consumer:
+          bootstrap-servers: ${SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
           group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:user-service-group}
           auto-offset-reset: earliest
-          bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+          enable-auto-commit: false
           key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+          properties:
+            spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+            spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+            spring.json.trusted.packages: "*"
+            spring.json.use.type.headers: false
     
-    # === EUREKA CONFIGURATION (Same as config-server) ===
+    # EUREKA CONFIGURATION
     eureka:
       client:
+        enabled: true
         serviceUrl:
-          defaultZone: http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
+          defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
         register-with-eureka: true
         fetch-registry: true
         registry-fetch-interval-seconds: 30
         initial-instance-info-replication-interval-seconds: 30
+        eureka-service-url-poll-interval-seconds: 300
+        instance-info-replication-interval-seconds: 30
+        heartbeat-executor-thread-pool-size: 2
+        heartbeat-executor-exponential-back-off-bound: 10
       instance:
         prefer-ip-address: true
         hostname: ${HOSTNAME:user-service}
@@ -76,20 +93,28 @@ data:
         health-check-url-path: /api/users/actuator/health
         metadata-map:
           management.context-path: /api/users/actuator
+          startup: ${random.int}
     
-    # === MANAGEMENT CONFIGURATION (Same pattern as config-server) ===
+    # MANAGEMENT CONFIGURATION
     management:
       endpoints:
         web:
           exposure:
-            include: health,info,refresh,beans,env,metrics
+            include: health,info,refresh,beans,env,metrics,prometheus
+          base-path: /actuator
       endpoint:
         health:
           show-details: always
           show-components: always
+          probes:
+            enabled: true
         env:
           show-values: always
       health:
+        livenessstate:
+          enabled: true
+        readinessstate:
+          enabled: true
         mongo:
           enabled: true
         eureka:
@@ -99,13 +124,23 @@ data:
         config:
           enabled: true
     
-    # === LOGGING CONFIGURATION (Same debug levels as config-server) ===
+    # LOGGING CONFIGURATION
     logging:
       level:
-        com.netflix.eureka: DEBUG
-        com.netflix.discovery: DEBUG
-        org.springframework.cloud.netflix.eureka: DEBUG
-        org.springframework.cloud.config: DEBUG
+        com.netflix.eureka: INFO
+        com.netflix.discovery: INFO
+        org.springframework.cloud.netflix.eureka: INFO
+        org.springframework.cloud.config: INFO
         org.springframework.kafka: INFO
+        org.apache.kafka: WARN
         com.Ecommerce.User_Service: DEBUG
         root: INFO
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [user-service] %logger{36} - %msg%n"
+    
+    # JWT Configuration
+    User-service:
+      app:
+        jwtCookieName: user-service-jwt
+        jwtSecret: ${JWT_SECRET:c03a546beee68b92784e681b537540349c386d02b6dbf9917cf438e47e5c1ee93fdebc55652af00cb3ebc6bff17dc3bedaa33ea6cfdd1959b114ede448c4ac87853021cc3c32f1ef6d5951d0c6b1398bc01c563c7638a0000e6b4064c5733c5552aa232aa8547be8b4b1f8dddacac8256f319acd6832ff5ae9365358e20624fc99dab8489d33e582cf621444e9d944442559707a1f92d556862bb53ce12deb3ec17d3a8bc3c7159b672e4f02189af368a8e71d8547a5b71518de7a1d9a4997d20b4f646fae73e73c26666799b21cdec5544b74319756bb0a27d4e124ec5f13bf8f338ce3ba5ad8b3af1a8aae211bef3eb6ca4f8a24e6b80662c94530e168b0dc}
+        jwtExpirationMs: ${USER_SERVICE_APP_JWT_EXPIRATION_MS:86400000}
