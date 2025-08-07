@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kibana
-  namespace: infrastructure
+  namespace: observability
   labels:
     app: kibana
-    component: infrastructure
+    component: observability
     tier: logging
 spec:
   replicas: 1
@@ -16,7 +16,7 @@ spec:
     metadata:
       labels:
         app: kibana
-        component: infrastructure
+        component: observability
         tier: logging
     spec:
       containers:
@@ -28,7 +28,7 @@ spec:
           env:
             # FIXED: Cleaned up environment variables for 8.x
             - name: ELASTICSEARCH_HOSTS
-              value: "http://elasticsearch.infrastructure.svc.cluster.local:9200"
+              value: "http://elasticsearch.observability.svc.cluster.local:9200"
             - name: SERVER_NAME
               value: "kibana"
             - name: SERVER_HOST
@@ -103,7 +103,7 @@ spec:
             - |
               echo "Waiting for Elasticsearch to be ready..."
               # Wait for Elasticsearch cluster health
-              until wget -q --spider --timeout=10 http://elasticsearch.infrastructure.svc.cluster.local:9200/_cluster/health?wait_for_status=yellow&timeout=60s; do 
+              until wget -q --spider --timeout=10 http://elasticsearch.observability.svc.cluster.local:9200/_cluster/health?wait_for_status=yellow&timeout=60s; do 
                 echo "Elasticsearch not ready, waiting 15 seconds..."
                 sleep 15
               done

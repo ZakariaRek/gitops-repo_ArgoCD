@@ -1,0 +1,165 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: elk-stack-dev
+  namespace: observability
+
+# Reference the base ELK stack configuration
+resources:
+  - ../../../../base/observability/elk
+  - elk-ingress.yaml
+
+# Use observability namespace
+namespace: observability
+
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+# Use development image tags (keeping stable versions for ELK)
+images:
+  - name: docker.elastic.co/elasticsearch/elasticsearch
+    newTag: 8.11.0
+  - name: docker.elastic.co/logstash/logstash
+    newTag: 8.11.0
+  - name: docker.elastic.co/kibana/kibana
+    newTag: 8.11.0
+
+# Reduce replicas for dev (save resources)
+replicas:
+  - name: elasticsearch
+    count: 1
+  - name: logstash
+    count: 1
+  - name: kibana
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: elk-dev-config
+    literals:
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=development
+      - CLUSTER_NAME=nexus-commerce-logs-dev
+      - ES_HEAP_SIZE=1g
+      - LS_HEAP_SIZE=1g
+
+# Add these patches to environments/dev/observability/elk/kustomization.yaml
+
+patches:
+  # Elasticsearch development patches - UPDATED
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: elasticsearch
+        namespace: observability
+      spec:
+        template:
+          spec:
+            containers:
+              - name: elasticsearch
+                env:
+                  - name: ES_JAVA_OPTS
+                    value: "-Xms512m -Xmx512m"
+                  - name: cluster.name
+                    value: "nexus-commerce-logs-dev"
+                  - name: logger.level
+                    value: "INFO"
+                  # FIXED: Remove conflicting security settings
+                  - name: xpack.security.enabled
+                    value: "false"
+                  - name: xpack.security.enrollment.enabled
+                    value: "false"
+                resources:
+                  requests:
+                    memory: "1Gi"
+                    cpu: "250m"
+                  limits:
+                    memory: "2Gi"
+                    cpu: "500m"
+    target:
+      kind: Deployment
+      name: elasticsearch
+
+  # Logstash development patches - UPDATED
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: logstash
+        namespace: observability
+      spec:
+        template:
+          spec:
+            containers:
+              - name: logstash
+                env:
+                  - name: LS_JAVA_OPTS
+                    value: "-Xmx512m -Xms512m"
+                  - name: XPACK_MONITORING_ENABLED
+                    value: "false"
+                resources:
+                  requests:
+                    memory: "512Mi"
+                    cpu: "200m"
+                  limits:
+                    memory: "1Gi"
+                    cpu: "500m"
+    target:
+      kind: Deployment
+      name: logstash
+
+  # Kibana development patches - UPDATED with better timings
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: kibana
+        namespace: observability
+      spec:
+        template:
+          spec:
+            containers:
+              - name: kibana
+                env:
+                  - name: LOGGING_ROOT_LEVEL
+                    value: "info"
+                  - name: NODE_OPTIONS
+                    value: "--max-old-space-size=1024"
+                resources:
+                  requests:
+                    memory: "512Mi"
+                    cpu: "200m"
+                  limits:
+                    memory: "1Gi"
+                    cpu: "500m"
+                # IMPROVED: Better probe timings for dev
+                startupProbe:
+                  httpGet:
+                    path: /api/status
+                    port: 5601
+                    httpHeaders:
+                      - name: kbn-xsrf
+                        value: "true"
+                  initialDelaySeconds: 90  # Reduced for dev
+                  periodSeconds: 15
+                  timeoutSeconds: 10
+                  failureThreshold: 20     # Still allow time for startup
+                readinessProbe:
+                  httpGet:
+                    path: /api/status
+                    port: 5601
+                    httpHeaders:
+                      - name: kbn-xsrf
+                        value: "true"
+                  initialDelaySeconds: 60   # Reduced for dev
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
+    target:
+      kind: Deployment
+      name: kibana

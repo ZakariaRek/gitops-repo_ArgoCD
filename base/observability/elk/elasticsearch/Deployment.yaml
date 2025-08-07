@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: elasticsearch
-  namespace: infrastructure
+  namespace: observability
   labels:
     app: elasticsearch
-    component: infrastructure
+    component: observability
     tier: logging
 spec:
   replicas: 1
@@ -16,7 +16,7 @@ spec:
     metadata:
       labels:
         app: elasticsearch
-        component: infrastructure
+        component: observability
         tier: logging
     spec:
       containers:

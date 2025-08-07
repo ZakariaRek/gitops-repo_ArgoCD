@@ -2,10 +2,10 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: logstash-config
-  namespace: infrastructure
+  namespace: observability
   labels:
     app: logstash
-    component: infrastructure
+    component: observability
     tier: logging
 data:
   logstash.yml: |

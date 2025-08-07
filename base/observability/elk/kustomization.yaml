@@ -3,7 +3,7 @@ kind: Kustomization
 
 metadata:
   name: elk-stack
-  namespace: infrastructure
+  namespace: observability
 
 resources:
   - elasticsearch
@@ -13,11 +13,11 @@ resources:
 labels:
   - pairs:
       stack: elk
-      component: infrastructure
+      component: observability
       tier: logging
       managed-by: argocd
 
-namespace: infrastructure
+namespace: observability
 
 # Common configurations for the entire stack
 configMapGenerator:
