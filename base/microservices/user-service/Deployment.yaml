@@ -26,34 +26,32 @@ spec:
             - containerPort: 8081
               name: http
           env:
+            # CRITICAL: Spring profiles must be set FIRST
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,kafka"
+
             # CRITICAL: Force all Kafka connections to use the Kubernetes service
-            - name: KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
-            - name: SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS
+            - name: KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
 
-            # JAVA_OPTS with all system properties INCLUDING Kafka overrides
+            # CRITICAL: Add these system properties to JAVA_OPTS to override any other config
             - name: JAVA_OPTS
               value: >-
                 -Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m
+                -Dspring.profiles.active=docker,kafka
                 -Dspring.kafka.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
                 -Dspring.kafka.producer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
                 -Dspring.kafka.consumer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
                 -Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
-                -Dspring.cloud.config.uri=http://config-server.infrastructure.svc.cluster.local:8888
-                -Dspring.profiles.active=docker,kafka
-                -Dmanagement.endpoints.web.exposure.include=*
                 -Deureka.client.enabled=true
                 -Deureka.client.register-with-eureka=true
                 -Deureka.client.fetch-registry=true
-
-            # Spring Profiles
-            - name: SPRING_PROFILES_ACTIVE
-              value: "docker,kafka"
+                -Dspring.cloud.config.enabled=false
+                -Dserver.port=8081
+                -Dserver.servlet.context-path=/api/users
+                -Dmanagement.endpoints.web.exposure.include=health,info,env,metrics
 
             # Application Configuration
             - name: SPRING_APPLICATION_NAME
@@ -67,7 +65,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
 
-            # EUREKA CONFIGURATION - All necessary properties
+            # EUREKA CONFIGURATION
             - name: EUREKA_CLIENT_ENABLED
               value: "true"
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
@@ -78,38 +76,26 @@ spec:
               value: "true"
             - name: EUREKA_CLIENT_FETCH_REGISTRY
               value: "true"
-            - name: EUREKA_CLIENT_REGISTRY_FETCH_INTERVAL_SECONDS
-              value: "30"
-            - name: EUREKA_CLIENT_INITIAL_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS
-              value: "30"
             - name: EUREKA_INSTANCE_HOSTNAME
               value: "user-service"
-            - name: EUREKA_INSTANCE_INSTANCE_ID
-              value: "${spring.application.name}:${HOSTNAME:user-service}:${server.port}"
-            - name: EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS
-              value: "30"
-            - name: EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS
-              value: "90"
 
-            # CONFIG SERVER CONFIGURATION
-            - name: SPRING_CLOUD_CONFIG_URI
-              value: "http://config-server.infrastructure.svc.cluster.local:8888"
+            # DISABLE CONFIG SERVER since it's causing issues
             - name: SPRING_CLOUD_CONFIG_ENABLED
-              value: "true"
+              value: "false"
             - name: SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED
               value: "false"
-            - name: SPRING_CLOUD_CONFIG_FAIL_FAST
-              value: "false"
-            - name: SPRING_CONFIG_LOCATION
-              value: "classpath:/,file:/config/"
 
-            # KAFKA CONFIGURATION - Ensure all are set
+            # KAFKA CONFIGURATION - Complete override
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
               value: "user-service-group"
             - name: SPRING_KAFKA_PRODUCER_KEY_SERIALIZER
               value: "org.apache.kafka.common.serialization.StringSerializer"
             - name: SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER
               value: "org.springframework.kafka.support.serializer.JsonSerializer"
+            - name: SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER
+              value: "org.apache.kafka.common.serialization.StringDeserializer"
+            - name: SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER
+              value: "org.apache.kafka.common.serialization.StringDeserializer"
 
             # MONGODB CONFIGURATION
             - name: SPRING_DATA_MONGODB_HOST
@@ -142,13 +128,7 @@ spec:
             - name: USER_SERVICE_APP_JWT_EXPIRATION_MS
               value: "86400000"
 
-          volumeMounts:
-            - name: config-override
-              mountPath: /config
-              readOnly: true
-            - name: logs-volume
-              mountPath: /app/logs
-
+          # Remove volumeMounts that might override configuration
           resources:
             requests:
               memory: "512Mi"
@@ -160,7 +140,7 @@ spec:
           # Health checks with longer timeouts for startup
           livenessProbe:
             httpGet:
-              path: /api/users/actuator/health/liveness
+              path: /api/users/actuator/health
               port: 8081
             initialDelaySeconds: 180
             periodSeconds: 30
@@ -169,7 +149,7 @@ spec:
 
           readinessProbe:
             httpGet:
-              path: /api/users/actuator/health/readiness
+              path: /api/users/actuator/health
               port: 8081
             initialDelaySeconds: 120
             periodSeconds: 15
@@ -184,13 +164,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 20
-
-      volumes:
-        - name: config-override
-          configMap:
-            name: user-service-config
-        - name: logs-volume
-          emptyDir: {}
 
       # INIT CONTAINERS - Check connectivity before starting
       initContainers:
@@ -215,30 +188,6 @@ spec:
               echo "Warning: Eureka still not available after $max_retries attempts, proceeding anyway..."
               exit 0
 
-        # Wait for Config Server
-        - name: wait-for-config-server
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Testing Config Server connectivity..."
-              max_retries=20
-              retry_count=0
-              while [ $retry_count -lt $max_retries ]; do
-                if nc -z config-server.infrastructure.svc.cluster.local 8888; then
-                  echo "Config Server is reachable!"
-                  exit 0
-                fi
-                echo "Config Server not ready, waiting... (attempt $retry_count/$max_retries)"
-                retry_count=$((retry_count+1))
-                sleep 5
-              done
-              echo "Warning: Config Server still not available after $max_retries attempts, proceeding anyway..."
-              exit 0
-
-        # Wait for MongoDB
-
-
         # Wait for Kafka
         - name: wait-for-kafka
           image: busybox:1.35
@@ -258,6 +207,9 @@ spec:
                 sleep 5
               done
               echo "ERROR: Kafka is not available after $max_retries attempts!"
+              echo "This will likely cause application startup issues"
               exit 1
+
+       
 
       restartPolicy: Always

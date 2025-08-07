@@ -16,23 +16,11 @@ data:
     spring:
       application:
         name: user-service
-      cloud:
-        config:
-          uri: ${SPRING_CLOUD_CONFIG_URI:http://config-server.infrastructure.svc.cluster.local:8888}
-          enabled: true
-          discovery:
-            enabled: false
-          fail-fast: false
-          retry:
-            enabled: true
-            initial-interval: 3000
-            max-attempts: 6
-            max-interval: 4000
-            multiplier: 1.1
       profiles:
         active: docker,kafka
       
-      # MongoDB Configuration
+  
+      # MongoDB Configuration - Use environment variables
       data:
         mongodb:
           host: ${SPRING_DATA_MONGODB_HOST:user-mongodb-headless.data.svc.cluster.local}
@@ -43,11 +31,11 @@ data:
           uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice:userservice123@user-mongodb-headless.data.svc.cluster.local:27017/User-service}
           authentication-database: ${SPRING_DATA_MONGODB_AUTH_DATABASE:admin}
       
-      # CRITICAL: Kafka Configuration - Use Kubernetes service
+      # CRITICAL: Kafka Configuration - Force Kubernetes service usage
       kafka:
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
         producer:
-          bootstrap-servers: ${SPRING_KAFKA_PRODUCER_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+          bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
           properties:
@@ -57,35 +45,26 @@ data:
             enable.idempotence: true
             max.in.flight.requests.per.connection: 1
         consumer:
-          bootstrap-servers: ${SPRING_KAFKA_CONSUMER_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+          bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
           group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:user-service-group}
           auto-offset-reset: earliest
           enable-auto-commit: false
-          key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
-          value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
-          properties:
-            spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
-            spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-            spring.json.trusted.packages: "*"
-            spring.json.use.type.headers: false
+          key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+          value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     
-    # EUREKA CONFIGURATION
+    # EUREKA CONFIGURATION - Force Kubernetes service usage
     eureka:
       client:
-        enabled: true
+        enabled: ${EUREKA_CLIENT_ENABLED:true}
         serviceUrl:
           defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
-        register-with-eureka: true
-        fetch-registry: true
+        register-with-eureka: ${EUREKA_CLIENT_REGISTER_WITH_EUREKA:true}
+        fetch-registry: ${EUREKA_CLIENT_FETCH_REGISTRY:true}
         registry-fetch-interval-seconds: 30
         initial-instance-info-replication-interval-seconds: 30
-        eureka-service-url-poll-interval-seconds: 300
-        instance-info-replication-interval-seconds: 30
-        heartbeat-executor-thread-pool-size: 2
-        heartbeat-executor-exponential-back-off-bound: 10
       instance:
-        prefer-ip-address: true
-        hostname: ${HOSTNAME:user-service}
+        prefer-ip-address: ${EUREKA_INSTANCE_PREFER_IP_ADDRESS:true}
+        hostname: ${EUREKA_INSTANCE_HOSTNAME:user-service}
         instance-id: ${spring.application.name}:${HOSTNAME:user-service}:${server.port}
         lease-renewal-interval-in-seconds: 30
         lease-expiration-duration-in-seconds: 90
@@ -100,7 +79,7 @@ data:
       endpoints:
         web:
           exposure:
-            include: health,info,refresh,beans,env,metrics,prometheus
+            include: health,info,env,metrics
           base-path: /actuator
       endpoint:
         health:
@@ -121,8 +100,6 @@ data:
           enabled: true
         kafka:
           enabled: true
-        config:
-          enabled: true
     
     # LOGGING CONFIGURATION
     logging:
@@ -130,7 +107,6 @@ data:
         com.netflix.eureka: INFO
         com.netflix.discovery: INFO
         org.springframework.cloud.netflix.eureka: INFO
-        org.springframework.cloud.config: INFO
         org.springframework.kafka: INFO
         org.apache.kafka: WARN
         com.Ecommerce.User_Service: DEBUG
