@@ -15,50 +15,44 @@ data:
     server.port: 5601
     server.publicBaseUrl: "http://kibana.infrastructure.svc.cluster.local:5601"
     
-    # Elasticsearch configuration
+    # Elasticsearch configuration - FIXED: Removed invalid keys
     elasticsearch.hosts: ["http://elasticsearch.infrastructure.svc.cluster.local:9200"]
     elasticsearch.username: ""
     elasticsearch.password: ""
-    elasticsearch.requestTimeout: 30000
-    elasticsearch.shardTimeout: 30000
-    elasticsearch.pingTimeout: 1500
-    elasticsearch.startupTimeout: 5000
+    # Removed: elasticsearch.requestTimeout, elasticsearch.shardTimeout, elasticsearch.pingTimeout, elasticsearch.startupTimeout
+    # These are not valid in Kibana 8.x
     
     # Security configuration (disabled for development)
     xpack.security.enabled: false
-    xpack.security.encryptionKey: "something_at_least_32_characters_long"
-    xpack.security.sessionTimeout: 600000
+    xpack.encryptedSavedObjects.encryptionKey: "something_at_least_32_characters_long"
     
-    # Monitoring configuration
-    xpack.monitoring.ui.container.elasticsearch.enabled: true
-    xpack.monitoring.kibana.collection.enabled: false
+    # Monitoring configuration - FIXED: Updated for 8.x
+    monitoring.ui.container.elasticsearch.enabled: true
+    monitoring.kibana.collection.enabled: false
     
     # Logging configuration
-    logging.root.level: info
-    logging.appenders.default:
-      type: console
-      layout:
-        type: json
+    logging:
+      root:
+        level: info
+      appenders:
+        default:
+          type: console
+          layout:
+            type: json
     
     # UI configuration
     i18n.locale: "en"
     
     # Index patterns
     kibana.index: ".kibana"
-    kibana.defaultAppId: "discover"
     
     # Save objects
     savedObjects.maxImportPayloadBytes: 26214400
     savedObjects.maxImportExportSize: 10000
     
-    # REMOVED INVALID CONFIGURATIONS:
-    # - xpack.canvas.enabled: true (not needed, enabled by default)
-    # - xpack.infra.enabled: true (not needed, enabled by default) 
-    # - xpack.apm.enabled: false (invalid key in 8.x)
-    # - xpack.uptime.enabled: false (invalid key in 8.x)
-    # - xpack.ml.enabled: false (invalid key in 8.x)
-    # - xpack.maps.enabled: true (not needed, enabled by default)
-    # - dashboard.defaultDarkMode: false (invalid key in 8.x)
+    # Path configuration
+    path.data: /usr/share/kibana/data
     
-    # Note: In Kibana 8.x, most xpack features are enabled by default
-    # and don't require explicit configuration unless you want to customize them
+    # Elasticsearch client configuration for 8.x
+    elasticsearch.serviceAccountToken: ""
+    elasticsearch.ssl.verificationMode: none
