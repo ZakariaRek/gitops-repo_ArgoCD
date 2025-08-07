@@ -3,7 +3,7 @@ kind: Kustomization
 
 metadata:
   name: kibana
-  namespace: infrastructure
+  namespace: observability
 
 resources:
   - Deployment.yaml
@@ -13,7 +13,7 @@ resources:
 labels:
   - pairs:
       app: kibana
-      component: infrastructure
+      component: observability
       tier: logging
       version: "8.11.0"
 
@@ -21,7 +21,7 @@ images:
   - name: docker.elastic.co/kibana/kibana
     newTag: 8.11.0
 
-namespace: infrastructure
+namespace: observability
 
 replicas:
   - name: kibana

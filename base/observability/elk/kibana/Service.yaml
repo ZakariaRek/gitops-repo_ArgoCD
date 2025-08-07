@@ -2,10 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kibana
-  namespace: infrastructure
+  namespace: observability
   labels:
     app: kibana
-    component: infrastructure
+    component: observability
     tier: logging
 spec:
   selector:

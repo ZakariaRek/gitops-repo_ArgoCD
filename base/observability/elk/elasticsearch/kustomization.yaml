@@ -3,7 +3,7 @@ kind: Kustomization
 
 metadata:
   name: elasticsearch
-  namespace: infrastructure
+  namespace: observability
 
 resources:
   - Deployment.yaml
@@ -14,7 +14,7 @@ resources:
 labels:
   - pairs:
       app: elasticsearch
-      component: infrastructure
+      component: observability
       tier: logging
       version: "8.11.0"
 
@@ -22,7 +22,7 @@ images:
   - name: docker.elastic.co/elasticsearch/elasticsearch
     newTag: 8.11.0
 
-namespace: infrastructure
+namespace: observability
 
 replicas:
   - name: elasticsearch

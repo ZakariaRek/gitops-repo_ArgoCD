@@ -2,10 +2,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: logstash
-  namespace: infrastructure
+  namespace: observability
   labels:
     app: logstash
-    component: infrastructure
+    component: observability
     tier: logging
 spec:
   replicas: 1
@@ -16,7 +16,7 @@ spec:
     metadata:
       labels:
         app: logstash
-        component: infrastructure
+        component: observability
         tier: logging
     spec:
       containers:
@@ -39,7 +39,7 @@ spec:
             - name: XPACK_MONITORING_ENABLED
               value: "false"
             - name: XPACK_MONITORING_ELASTICSEARCH_HOSTS
-              value: "http://elasticsearch.infrastructure.svc.cluster.local:9200"
+              value: "http://elasticsearch.observability.svc.cluster.local:9200"
           resources:
             requests:
               memory: "1.5Gi"
@@ -113,7 +113,7 @@ spec:
           args:
             - |
               echo "Waiting for Elasticsearch..."
-              until nc -z elasticsearch.infrastructure.svc.cluster.local 9200; do 
+              until nc -z elasticsearch.observability.svc.cluster.local 9200; do 
                 echo "Elasticsearch not ready, waiting..."
                 sleep 10
               done
