@@ -44,9 +44,9 @@ spec:
               memory: "2Gi"
               cpu: "1000m"
           volumeMounts:
-            - name: logstash-config
-              mountPath: /usr/share/logstash/config/logstash.yml
-              subPath: logstash.yml
+            # Mount config to a writable directory
+            - name: logstash-config-volume
+              mountPath: /usr/share/logstash/config
             - name: logstash-pipeline
               mountPath: /usr/share/logstash/pipeline/logstash.conf
               subPath: logstash.conf
@@ -75,13 +75,31 @@ spec:
             timeoutSeconds: 10
             failureThreshold: 20
       volumes:
-        - name: logstash-config
+        # Create a writable volume for the config directory
+        - name: logstash-config-volume
+          emptyDir: {}
+        - name: logstash-config-source
           configMap:
             name: logstash-config
         - name: logstash-pipeline
           configMap:
             name: logstash-pipeline
       initContainers:
+        # Copy the config from ConfigMap to writable volume
+        - name: setup-config
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Copying Logstash configuration..."
+              cp /tmp/config-source/* /usr/share/logstash/config/
+              ls -la /usr/share/logstash/config/
+              echo "Configuration setup complete!"
+          volumeMounts:
+            - name: logstash-config-source
+              mountPath: /tmp/config-source
+            - name: logstash-config-volume
+              mountPath: /usr/share/logstash/config
         - name: wait-for-elasticsearch
           image: busybox:1.35
           command: ['sh', '-c']
