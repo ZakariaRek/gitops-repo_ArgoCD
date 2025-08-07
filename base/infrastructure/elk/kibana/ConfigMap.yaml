@@ -13,7 +13,8 @@ data:
     server.name: "kibana"
     server.host: "0.0.0.0"
     server.port: 5601
-    server.publicBaseUrl: ""
+    # FIX: This cannot be empty in Kibana 8.x
+    server.publicBaseUrl: "http://kibana.infrastructure.svc.cluster.local:5601"
     
     # Elasticsearch configuration
     elasticsearch.hosts: ["http://elasticsearch.infrastructure.svc.cluster.local:9200"]
