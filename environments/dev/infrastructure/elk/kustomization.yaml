@@ -47,9 +47,10 @@ configMapGenerator:
       - ES_HEAP_SIZE=1g
       - LS_HEAP_SIZE=1g
 
-# Development-specific patches
+# Add these patches to environments/dev/infrastructure/elk/kustomization.yaml
+
 patches:
-  # Elasticsearch development patches
+  # Elasticsearch development patches - UPDATED
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -67,7 +68,12 @@ patches:
                   - name: cluster.name
                     value: "nexus-commerce-logs-dev"
                   - name: logger.level
-                    value: "DEBUG"
+                    value: "INFO"
+                  # FIXED: Remove conflicting security settings
+                  - name: xpack.security.enabled
+                    value: "false"
+                  - name: xpack.security.enrollment.enabled
+                    value: "false"
                 resources:
                   requests:
                     memory: "1Gi"
@@ -79,7 +85,7 @@ patches:
       kind: Deployment
       name: elasticsearch
 
-  # Logstash development patches
+  # Logstash development patches - UPDATED
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -94,6 +100,8 @@ patches:
                 env:
                   - name: LS_JAVA_OPTS
                     value: "-Xmx512m -Xms512m"
+                  - name: XPACK_MONITORING_ENABLED
+                    value: "false"
                 resources:
                   requests:
                     memory: "512Mi"
@@ -105,7 +113,7 @@ patches:
       kind: Deployment
       name: logstash
 
-  # Kibana development patches
+  # Kibana development patches - UPDATED with better timings
   - patch: |-
       apiVersion: apps/v1
       kind: Deployment
@@ -119,7 +127,9 @@ patches:
               - name: kibana
                 env:
                   - name: LOGGING_ROOT_LEVEL
-                    value: "debug"
+                    value: "info"
+                  - name: NODE_OPTIONS
+                    value: "--max-old-space-size=1024"
                 resources:
                   requests:
                     memory: "512Mi"
@@ -127,85 +137,29 @@ patches:
                   limits:
                     memory: "1Gi"
                     cpu: "500m"
+                # IMPROVED: Better probe timings for dev
+                startupProbe:
+                  httpGet:
+                    path: /api/status
+                    port: 5601
+                    httpHeaders:
+                      - name: kbn-xsrf
+                        value: "true"
+                  initialDelaySeconds: 90  # Reduced for dev
+                  periodSeconds: 15
+                  timeoutSeconds: 10
+                  failureThreshold: 20     # Still allow time for startup
+                readinessProbe:
+                  httpGet:
+                    path: /api/status
+                    port: 5601
+                    httpHeaders:
+                      - name: kbn-xsrf
+                        value: "true"
+                  initialDelaySeconds: 60   # Reduced for dev
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  failureThreshold: 5
     target:
       kind: Deployment
       name: kibana
-
-  # Patch services to use NodePort for dev access
-  - patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: elasticsearch
-        namespace: infrastructure
-      spec:
-        type: NodePort
-        ports:
-          - name: http
-            port: 9200
-            targetPort: 9200
-            nodePort: 30920
-          - name: transport
-            port: 9300
-            targetPort: 9300
-            nodePort: 30930
-    target:
-      kind: Service
-      name: elasticsearch
-
-  - patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: logstash
-        namespace: infrastructure
-      spec:
-        type: NodePort
-        ports:
-          - name: beats
-            port: 5044
-            targetPort: 5044
-            nodePort: 30544
-          - name: tcp
-            port: 5000
-            targetPort: 5000
-            nodePort: 30500
-          - name: monitoring
-            port: 9600
-            targetPort: 9600
-            nodePort: 30960
-    target:
-      kind: Service
-      name: logstash
-
-  - patch: |-
-      apiVersion: v1
-      kind: Service
-      metadata:
-        name: kibana
-        namespace: infrastructure
-      spec:
-        type: NodePort
-        ports:
-          - name: http
-            port: 5601
-            targetPort: 5601
-            nodePort: 30561
-    target:
-      kind: Service
-      name: kibana
-
-  # Patch PVC for smaller storage in dev
-  - patch: |-
-      apiVersion: v1
-      kind: PersistentVolumeClaim
-      metadata:
-        name: elasticsearch-pvc
-        namespace: infrastructure
-      spec:
-        resources:
-          requests:
-            storage: 10Gi  # Smaller storage for dev
-    target:
-      kind: PersistentVolumeClaim
-      name: elasticsearch-pvc
