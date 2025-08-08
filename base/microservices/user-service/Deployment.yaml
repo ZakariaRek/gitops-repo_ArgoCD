@@ -139,17 +139,6 @@ spec:
       # InitContainers - Same pattern as Cart Service
       initContainers:
         # Wait for MongoDB
-        - name: wait-for-mongodb
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Waiting for User MongoDB..."
-              until nc -z user-mongodb-headless.data.svc.cluster.local 27017; do 
-                echo "MongoDB not ready, waiting..."
-                sleep 3
-              done
-              echo "User MongoDB is ready!"
 
         # Wait for Kafka
         - name: wait-for-kafka
