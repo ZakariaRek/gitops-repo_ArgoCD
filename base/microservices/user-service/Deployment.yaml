@@ -26,78 +26,33 @@ spec:
             - containerPort: 8081
               name: http
           env:
-            # CRITICAL: Spring profiles must be set FIRST
-            - name: SPRING_PROFILES_ACTIVE
-              value: "docker,kafka"
-
-            # CRITICAL: Force all Kafka connections to use the Kubernetes service
-            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-
-            # CRITICAL: Add these system properties to JAVA_OPTS to override any other config
+            # Simplified JAVA_OPTS - similar to Cart Service
             - name: JAVA_OPTS
-              value: >-
-                -Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m
-                -Dspring.profiles.active=docker,kafka
-                -Dspring.kafka.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
-                -Dspring.kafka.producer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
-                -Dspring.kafka.consumer.bootstrap-servers=kafka-service.data.svc.cluster.local:9092
-                -Deureka.client.serviceUrl.defaultZone=http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
-                -Deureka.client.enabled=true
-                -Deureka.client.register-with-eureka=true
-                -Deureka.client.fetch-registry=true
-                -Dspring.cloud.config.enabled=false
-                -Dserver.port=8081
-                -Dserver.servlet.context-path=/api/users
-                -Dmanagement.endpoints.web.exposure.include=health,info,env,metrics
+              value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
 
             # Application Configuration
+            - name: SPRING_PROFILES_ACTIVE
+              value: "docker,kafka"
             - name: SPRING_APPLICATION_NAME
               value: "user-service"
             - name: SERVER_PORT
               value: "8081"
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api/users"
-            - name: HOSTNAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
 
-            # EUREKA CONFIGURATION
-            - name: EUREKA_CLIENT_ENABLED
-              value: "true"
+            # Eureka Configuration - Keep it simple like Cart Service
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
-              value: "true"
-            - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
-              value: "true"
-            - name: EUREKA_CLIENT_FETCH_REGISTRY
-              value: "true"
             - name: EUREKA_INSTANCE_HOSTNAME
               value: "user-service"
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
 
-            # DISABLE CONFIG SERVER since it's causing issues
-            - name: SPRING_CLOUD_CONFIG_ENABLED
-              value: "false"
-            - name: SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED
-              value: "false"
+            # Config Server Configuration - Enable it like Cart Service
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: "http://config-server.infrastructure.svc.cluster.local:8888"
 
-            # KAFKA CONFIGURATION - Complete override
-            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
-              value: "user-service-group"
-            - name: SPRING_KAFKA_PRODUCER_KEY_SERIALIZER
-              value: "org.apache.kafka.common.serialization.StringSerializer"
-            - name: SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER
-              value: "org.springframework.kafka.support.serializer.JsonSerializer"
-            - name: SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER
-              value: "org.apache.kafka.common.serialization.StringDeserializer"
-            - name: SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER
-              value: "org.apache.kafka.common.serialization.StringDeserializer"
-
-            # MONGODB CONFIGURATION
+            # MongoDB Configuration
             - name: SPRING_DATA_MONGODB_HOST
               value: "user-mongodb-headless.data.svc.cluster.local"
             - name: SPRING_DATA_MONGODB_PORT
@@ -114,13 +69,17 @@ spec:
                 secretKeyRef:
                   name: user-service-secrets
                   key: mongodb-password
-            - name: SPRING_DATA_MONGODB_AUTHENTICATION_DATABASE
-              value: "admin"
             - name: SPRING_DATA_MONGODB_URI
               value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin"
 
-            # JWT CONFIGURATION
-            - name: JWT_SECRET
+            # Kafka Configuration
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: SPRING_KAFKA_CONSUMER_GROUP_ID
+              value: "user-service-group"
+
+            # JWT Configuration
+            - name: USER_SERVICE_APP_JWT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: user-service-secrets
@@ -128,65 +87,69 @@ spec:
             - name: USER_SERVICE_APP_JWT_EXPIRATION_MS
               value: "86400000"
 
-          # Remove volumeMounts that might override configuration
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: "1Gi"
+              cpu: "500m"
             limits:
               memory: "2Gi"
               cpu: "1000m"
 
-          # Health checks with longer timeouts for startup
+          # Health Checks - Same as Cart Service timings
           livenessProbe:
             httpGet:
               path: /api/users/actuator/health
               port: 8081
             initialDelaySeconds: 180
-            periodSeconds: 30
-            timeoutSeconds: 10
+            periodSeconds: 45
+            timeoutSeconds: 15
             failureThreshold: 5
 
           readinessProbe:
             httpGet:
-              path: /api/users/actuator/health
+              path: /api/users/actuator/health/readiness
               port: 8081
             initialDelaySeconds: 120
             periodSeconds: 15
             timeoutSeconds: 10
-            failureThreshold: 5
+            failureThreshold: 8
 
           startupProbe:
             httpGet:
               path: /api/users/actuator/health
               port: 8081
             initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 20
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 30
 
-      # INIT CONTAINERS - Check connectivity before starting
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+            - name: logs-volume
+              mountPath: /app/logs
+
+      volumes:
+        - name: config-volume
+          configMap:
+            name: user-service-config
+        - name: logs-volume
+          emptyDir: {}
+
+      # InitContainers - Same pattern as Cart Service
       initContainers:
-        # Wait for Eureka
-        - name: wait-for-eureka
+        # Wait for MongoDB
+        - name: wait-for-mongodb
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
-              echo "Testing Eureka connectivity..."
-              max_retries=30
-              retry_count=0
-              while [ $retry_count -lt $max_retries ]; do
-                if nc -z eureka-server.infrastructure.svc.cluster.local 8761; then
-                  echo "Eureka is reachable!"
-                  exit 0
-                fi
-                echo "Eureka not ready, waiting... (attempt $retry_count/$max_retries)"
-                retry_count=$((retry_count+1))
-                sleep 5
+              echo "Waiting for User MongoDB..."
+              until nc -z user-mongodb-headless.data.svc.cluster.local 27017; do 
+                echo "MongoDB not ready, waiting..."
+                sleep 3
               done
-              echo "Warning: Eureka still not available after $max_retries attempts, proceeding anyway..."
-              exit 0
+              echo "User MongoDB is ready!"
 
         # Wait for Kafka
         - name: wait-for-kafka
@@ -194,22 +157,35 @@ spec:
           command: ['sh', '-c']
           args:
             - |
-              echo "Testing Kafka connectivity..."
-              max_retries=30
-              retry_count=0
-              while [ $retry_count -lt $max_retries ]; do
-                if nc -z kafka-service.data.svc.cluster.local 9092; then
-                  echo "Kafka is reachable!"
-                  exit 0
-                fi
-                echo "Kafka not ready, waiting... (attempt $retry_count/$max_retries)"
-                retry_count=$((retry_count+1))
-                sleep 5
+              echo "Waiting for Kafka..."
+              until nc -z kafka-service.data.svc.cluster.local 9092; do 
+                echo "Kafka not ready, waiting..."
+                sleep 3
               done
-              echo "ERROR: Kafka is not available after $max_retries attempts!"
-              echo "This will likely cause application startup issues"
-              exit 1
+              echo "Kafka is ready!"
 
-       
+        # Wait for Eureka
+        - name: wait-for-eureka
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Eureka..."
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
+                echo "Eureka not ready, waiting..."
+                sleep 3
+              done
+              echo "Eureka is ready!"
 
-      restartPolicy: Always
+        # Wait for Config Server
+        - name: wait-for-config-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Config Server..."
+              until nc -z config-server.infrastructure.svc.cluster.local 8888; do 
+                echo "Config Server not ready, waiting..."
+                sleep 3
+              done
+              echo "Config Server is ready!"
