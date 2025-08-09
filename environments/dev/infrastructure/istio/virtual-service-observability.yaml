@@ -1,0 +1,96 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: observability-vs
+  namespace: observability
+  labels:
+    app: observability
+    component: istio-routing
+    environment: dev
+spec:
+  hosts:
+    - "kibana.nexus-commerce.local"
+    - "elasticsearch.nexus-commerce.local"
+    - "zipkin.nexus-commerce.local"
+  gateways:
+    - istio-system/nexus-commerce-dev-gateway
+  http:
+    # Kibana UI
+    - match:
+        - uri:
+            prefix: "/"
+          headers:
+            host:
+              exact: "kibana.nexus-commerce.local"
+      route:
+        - destination:
+            host: kibana.observability.svc.cluster.local
+            port:
+              number: 5601
+      timeout: 60s
+
+    # Elasticsearch API (for debugging)
+    - match:
+        - uri:
+            prefix: "/"
+          headers:
+            host:
+              exact: "elasticsearch.nexus-commerce.local"
+      route:
+        - destination:
+            host: elasticsearch.observability.svc.cluster.local
+            port:
+              number: 9200
+      timeout: 30s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: zipkin-vs
+  namespace: infrastructure
+  labels:
+    app: zipkin
+    component: istio-routing
+    environment: dev
+spec:
+  hosts:
+    - "zipkin.nexus-commerce.local"
+  gateways:
+    - istio-system/nexus-commerce-dev-gateway
+  http:
+    - match:
+        - uri:
+            prefix: "/"
+      route:
+        - destination:
+            host: zipkin-server.infrastructure.svc.cluster.local
+            port:
+              number: 9411
+      timeout: 30s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: kafka-ui-vs
+  namespace: data
+  labels:
+    app: kafka-ui
+    component: istio-routing
+    environment: dev
+spec:
+  hosts:
+    - "kafka-ui.nexus-commerce.local"
+  gateways:
+    - istio-system/nexus-commerce-dev-gateway
+  http:
+    - match:
+        - uri:
+            prefix: "/"
+      route:
+        - destination:
+            host: kafka-ui-service.data.svc.cluster.local
+            port:
+              number: 8080
+      timeout: 30s

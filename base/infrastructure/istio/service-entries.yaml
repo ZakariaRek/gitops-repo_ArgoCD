@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-apis
+  namespace: istio-system
+spec:
+  hosts:
+    - api.stripe.com
+    - api.paypal.com
+    - smtp.gmail.com
+    - github.com
+  ports:
+    - number: 443
+      name: https
+      protocol: HTTPS
+    - number: 587
+      name: smtp-tls
+      protocol: TCP
+  location: MESH_EXTERNAL
+  resolution: DNS
