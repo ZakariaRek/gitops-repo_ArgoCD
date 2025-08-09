@@ -58,9 +58,7 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
-            - name: postgres-init
-              mountPath: /docker-entrypoint-initdb.d
-              readOnly: true
+
             - name: postgres-config
               mountPath: /etc/postgresql
               readOnly: true
