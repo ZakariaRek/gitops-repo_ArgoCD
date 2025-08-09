@@ -1,0 +1,43 @@
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: debug-telemetry
+  namespace: microservices
+  labels:
+    environment: dev
+spec:
+  metrics:
+    - providers:
+        - name: prometheus
+    - overrides:
+        - match:
+            metric: ALL_METRICS
+          tagOverrides:
+            environment:
+              value: "development"
+            cluster:
+              value: "nexus-commerce-dev"
+            namespace:
+              value: "{{.destination_namespace}}"
+
+---
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: dev-access-logging
+  namespace: microservices
+  labels:
+    environment: dev
+spec:
+  accessLogging:
+    - providers:
+        - name: otel
+    - match:
+        mode: CLIENT
+      format:
+        text: |
+          [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+          %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%
+          %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%"
+          "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+          outbound|%UPSTREAM_CLUSTER% %DOWNSTREAM_REMOTE_ADDRESS%

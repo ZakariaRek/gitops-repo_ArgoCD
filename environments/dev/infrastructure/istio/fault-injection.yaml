@@ -1,0 +1,34 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-fault-injection
+  namespace: microservices
+  labels:
+    app: user-service
+    component: istio-chaos
+    environment: dev
+spec:
+  hosts:
+    - user-service.microservices.svc.cluster.local
+  http:
+    - match:
+        - headers:
+            chaos-test:
+              exact: "true"
+      fault:
+        delay:
+          percentage:
+            value: 10
+          fixedDelay: 2s
+        abort:
+          percentage:
+            value: 5
+          httpStatus: 503
+      route:
+        - destination:
+            host: user-service.microservices.svc.cluster.local
+
+    # Normal traffic without fault injection
+    - route:
+        - destination:
+            host: user-service.microservices.svc.cluster.local

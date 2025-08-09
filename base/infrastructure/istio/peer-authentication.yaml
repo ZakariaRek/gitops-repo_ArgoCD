@@ -1,0 +1,28 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: microservices
+spec:
+  mtls:
+    mode: PERMISSIVE  # Allow both mTLS and plain text for gradual migration
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: infrastructure-mtls
+  namespace: infrastructure
+spec:
+  mtls:
+    mode: PERMISSIVE
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: data-layer-mtls
+  namespace: data
+spec:
+  mtls:
+    mode: PERMISSIVE

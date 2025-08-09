@@ -5,3 +5,5 @@ metadata:
   labels:
     name: microservices
     component: microservices
+    istio-injection: enabled  # Enable Istio sidecar injection
+    istio.io/rev: default     # Use default Istio revision

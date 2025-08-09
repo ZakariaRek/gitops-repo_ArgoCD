@@ -1,0 +1,64 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-canary-vs
+  namespace: microservices
+  labels:
+    app: user-service
+    component: istio-canary
+    environment: dev
+spec:
+  hosts:
+    - user-service.microservices.svc.cluster.local
+  http:
+    # 90% traffic to stable version
+    - match:
+        - headers:
+            canary:
+              exact: "false"
+      route:
+        - destination:
+            host: user-service.microservices.svc.cluster.local
+            subset: stable
+          weight: 90
+        - destination:
+            host: user-service.microservices.svc.cluster.local
+            subset: canary
+          weight: 10
+
+    # 100% canary traffic for testing
+    - match:
+        - headers:
+            canary:
+              exact: "true"
+      route:
+        - destination:
+            host: user-service.microservices.svc.cluster.local
+            subset: canary
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: user-service-canary-dr
+  namespace: microservices
+  labels:
+    app: user-service
+    component: istio-canary
+    environment: dev
+spec:
+  host: user-service.microservices.svc.cluster.local
+  subsets:
+    - name: stable
+      labels:
+        version: stable
+    - name: canary
+      labels:
+        version: canary
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+      http:
+        http1MaxPendingRequests: 10
+        maxRequestsPerConnection: 2
