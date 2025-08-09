@@ -26,7 +26,7 @@ spec:
             - containerPort: 8081
               name: http
           env:
-            # Simplified JAVA_OPTS - similar to Cart Service
+            # JVM Options
             - name: JAVA_OPTS
               value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
 
@@ -40,7 +40,7 @@ spec:
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api/users"
 
-            # Eureka Configuration - Keep it simple like Cart Service
+            # Eureka Configuration - Fixed service URL
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
             - name: EUREKA_INSTANCE_HOSTNAME
@@ -48,11 +48,11 @@ spec:
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
               value: "true"
 
-            # Config Server Configuration - Enable it like Cart Service
+            # Config Server Configuration
             - name: SPRING_CLOUD_CONFIG_URI
               value: "http://config-server.infrastructure.svc.cluster.local:8888"
 
-            # MongoDB Configuration
+            # MongoDB Configuration - Fixed to use proper Kubernetes service
             - name: SPRING_DATA_MONGODB_HOST
               value: "user-mongodb-headless.data.svc.cluster.local"
             - name: SPRING_DATA_MONGODB_PORT
@@ -72,7 +72,7 @@ spec:
             - name: SPRING_DATA_MONGODB_URI
               value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin"
 
-            # Kafka Configuration
+            # Kafka Configuration - Fixed to use proper Kubernetes service
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
@@ -86,6 +86,10 @@ spec:
                   key: jwt-secret
             - name: USER_SERVICE_APP_JWT_EXPIRATION_MS
               value: "86400000"
+
+            # Disable Zipkin for now
+            - name: SPRING_ZIPKIN_ENABLED
+              value: "false"
 
           resources:
             requests:
@@ -136,9 +140,20 @@ spec:
         - name: logs-volume
           emptyDir: {}
 
-      # InitContainers - Same pattern as Cart Service
+      # InitContainers - FIXED: Added missing MongoDB wait container
       initContainers:
-        # Wait for MongoDB
+        # Wait for MongoDB - THIS WAS MISSING
+        - name: wait-for-mongodb
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for User MongoDB..."
+              until nc -z user-mongodb-headless.data.svc.cluster.local 27017; do 
+                echo "MongoDB not ready, waiting..."
+                sleep 3
+              done
+              echo "User MongoDB is ready!"
 
         # Wait for Kafka
         - name: wait-for-kafka

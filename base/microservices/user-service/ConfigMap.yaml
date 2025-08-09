@@ -27,7 +27,7 @@ data:
       application:
         name: user-service
       
-      # MongoDB Configuration
+      # MongoDB Configuration - Fixed to use Kubernetes service
       data:
         mongodb:
           host: ${SPRING_DATA_MONGODB_HOST:user-mongodb-headless.data.svc.cluster.local}
@@ -35,9 +35,19 @@ data:
           database: ${SPRING_DATA_MONGODB_DATABASE:User-service}
           username: ${SPRING_DATA_MONGODB_USERNAME:userservice}
           password: ${SPRING_DATA_MONGODB_PASSWORD:userservice123}
-          uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice:userservice123@user-mongodb-headless.data.svc.cluster.local:27017/User-service}
+          uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice:userservice123@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin}
       
-      # Kafka Configuration - Same pattern as Cart Service
+      # Zipkin Configuration - Disabled for now
+      zipkin:
+        enabled: false
+        base-url: ${SPRING_ZIPKIN_BASE_URL:http://zipkin-server.infrastructure:9411}
+      sleuth:
+        zipkin:
+          base-url: ${SPRING_SLEUTH_ZIPKIN_BASE_URL:http://zipkin-server.infrastructure:9411}
+        sampler:
+          probability: 0.0  # Disabled
+      
+      # Kafka Configuration - Fixed to use Kubernetes service
       kafka:
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
         producer:
@@ -60,8 +70,9 @@ data:
             spring.json.trusted.packages: "*"
             spring.json.use.type.headers: false
             spring.json.value.default.type: java.lang.Object
-    
-    # Eureka Configuration - Same as Cart Service
+      
+  
+    # Eureka Configuration - Fixed to use Kubernetes service
     eureka:
       instance:
         preferIpAddress: true
@@ -79,7 +90,7 @@ data:
         serviceUrl:
           defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
     
-    # Management and Monitoring - Same as Cart Service
+    # Management and Monitoring
     management:
       health:
         mongo:
@@ -105,13 +116,21 @@ data:
             http.server.requests: 0.5, 0.95, 0.99
         tags:
           application: ${spring.application.name}
+      tracing:
+        sampling:
+          probability: 0.0  # Disabled for now
     
     # JWT Configuration
     User-service:
       app:
-        jwtCookieName: user-service-jwt
+        jwtCookieName: ${USER_SERVICE_APP_JWT_COOKIE_NAME:user-service}
         jwtSecret: ${USER_SERVICE_APP_JWT_SECRET:c03a546beee68b92784e681b537540349c386d02b6dbf9917cf438e47e5c1ee93fdebc55652af00cb3ebc6bff17dc3bedaa33ea6cfdd1959b114ede448c4ac87853021cc3c32f1ef6d5951d0c6b1398bc01c563c7638a0000e6b4064c5733c5552aa232aa8547be8b4b1f8dddacac8256f319acd6832ff5ae9365358e20624fc99dab8489d33e582cf621444e9d944442559707a1f92d556862bb53ce12deb3ec17d3a8bc3c7159b672e4f02189af368a8e71d8547a5b71518de7a1d9a4997d20b4f646fae73e73c26666799b21cdec5544b74319756bb0a27d4e124ec5f13bf8f338ce3ba5ad8b3af1a8aae211bef3eb6ca4f8a24e6b80662c94530e168b0dc}
         jwtExpirationMs: ${USER_SERVICE_APP_JWT_EXPIRATION_MS:86400000}
+    
+    # OAuth2 Application Configuration
+    app:
+      oauth2:
+        authorizedRedirectUris: "${APP_OAUTH2_AUTHORIZED_REDIRECT_URIS:http://localhost:3000/auth/oauth2/redirect}"
     
     # User Service Specific Configuration
     user:
@@ -119,3 +138,14 @@ data:
         timeout: 1800 # 30 minutes
       cleanup:
         schedule: "0 0 */6 * * *" # Every 6 hours
+    
+    # Logging Configuration
+    logging:
+      level:
+        com.Ecommerce.User_Service: DEBUG
+        org.springframework.kafka: INFO  # Reduced noise
+        org.apache.kafka: WARN
+        org.springframework.cloud.netflix.eureka: INFO
+        org.springframework.security: INFO
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [${spring.application.name}] %logger{36} - %msg%n"
