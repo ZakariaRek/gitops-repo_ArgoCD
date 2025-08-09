@@ -101,9 +101,6 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 12
       volumes:
-        - name: postgres-init
-          configMap:
-            name: payment-postgres-init
         - name: postgres-config
           configMap:
             name: payment-postgres-config
