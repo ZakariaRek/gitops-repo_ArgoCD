@@ -4,7 +4,7 @@ kind: Kustomization
 # Include the individual service overlays
 resources:
     - elk
-    - kiali
+    - Kiali  # FIXED: Changed from 'kiali' to 'Kiali' to match directory name
 
 # Use 'labels' instead of deprecated 'commonLabels'
 labels:
