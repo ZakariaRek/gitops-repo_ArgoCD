@@ -59,9 +59,6 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
-            - name: postgres-init
-              mountPath: /docker-entrypoint-initdb.d
-              readOnly: true
             - name: postgres-config
               mountPath: /etc/postgresql
               readOnly: true
@@ -102,9 +99,6 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 12
       volumes:
-        - name: postgres-init
-          configMap:
-            name: loyalty-postgres-init
         - name: postgres-config
           configMap:
             name: loyalty-postgres-config
