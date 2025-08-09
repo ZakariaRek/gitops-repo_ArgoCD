@@ -1,3 +1,4 @@
+# argocd/applications/istio.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -18,20 +19,35 @@ spec:
     namespace: istio-system
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: false  # ⚠️ CRITICAL: Never auto-prune Istio resources
+      selfHeal: false  # ⚠️ CRITICAL: Disable self-heal for Istio
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true  # Required for Istio CRDs
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
     retry:
-      limit: 5
+      limit: 10  # Increased retry limit
       backoff:
-        duration: 5s
+        duration: 30s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 10m
+  # Enhanced ignore differences for Istio
   ignoreDifferences:
     - group: install.istio.io
       kind: IstioOperator
       jsonPointers:
         - /spec/revision
         - /status
+        - /spec/values/pilot/env
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        - /webhooks/1/clientConfig/caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        - /webhooks/1/clientConfig/caBundle
