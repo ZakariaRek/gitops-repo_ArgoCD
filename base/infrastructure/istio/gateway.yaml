@@ -1,0 +1,36 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: nexus-commerce-gateway
+  namespace: istio-system
+  labels:
+    app: nexus-commerce
+    component: istio-gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    # HTTP traffic
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.nexus-commerce.local"
+        - "api.nexus-commerce.local"
+        - "microservices.nexus-commerce.local"
+      tls:
+        httpsRedirect: false  # Allow HTTP for dev
+
+    # HTTPS traffic (for production)
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*.nexus-commerce.local"
+        - "api.nexus-commerce.local"
+        - "microservices.nexus-commerce.local"
+      tls:
+        mode: SIMPLE
+        credentialName: nexus-commerce-tls-secret

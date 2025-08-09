@@ -1,0 +1,35 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: nexus-commerce-dev-gateway
+  namespace: istio-system
+  labels:
+    app: nexus-commerce
+    component: istio-gateway
+    environment: dev
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    # HTTP traffic for development
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*.nexus-commerce.local"
+        - "dev.nexus-commerce.local"
+        - "microservices-dev.nexus-commerce.local"
+        - "api-dev.nexus-commerce.local"
+        - "kibana.nexus-commerce.local"
+        - "grafana.nexus-commerce.local"
+        - "zipkin.nexus-commerce.local"
+        - "kafka-ui.nexus-commerce.local"
+
+    # Additional development endpoints
+    - port:
+        number: 8080
+        name: http-alt
+        protocol: HTTP
+      hosts:
+        - "*.nexus-commerce.local"

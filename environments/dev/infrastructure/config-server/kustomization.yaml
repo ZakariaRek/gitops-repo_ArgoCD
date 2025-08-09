@@ -1,68 +1,128 @@
+# Apply this patch to fix the immediate startup issue
+# File: environments/dev/infrastructure/config-server/startup-fix-patch.yaml
+
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-- ../../../../base/infrastructure/config-server
+  - ../../../../base/infrastructure/config-server
 
 namespace: infrastructure
 
 labels:
-- pairs:
-    environment: dev
-    tier: development
+  - pairs:
+      environment: dev
+      tier: development
 
 images:
-- name: yahyazakaria123/ecommerce-app-config-serveur
-  newTag: latest  # Changed from dev-latest to latest
+  - name: yahyazakaria123/ecommerce-app-config-service  # Fixed: removed typo 'serveur'
+    newTag: latest
 
 replicas:
-- name: config-server
-  count: 1
+  - name: config-server
+    count: 1
 
 configMapGenerator:
-- name: config-server-dev-config
-  literals:
-  - LOG_LEVEL=DEBUG
-  - SPRING_PROFILES_ACTIVE=dev,docker
+  - name: config-server-dev-config
+    literals:
+      - LOG_LEVEL=DEBUG
+      - SPRING_PROFILES_ACTIVE=dev,docker
 
 patches:
-- patch: |-
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: config-server
+      spec:
+        template:
+          spec:
+            containers:
+              - name: config-server
+                env:
+                  - name: SPRING_PROFILES_ACTIVE
+                    value: "dev,docker"
+                  - name: LOG_LEVEL
+                    value: "DEBUG"
+                  # CRITICAL: Add Git repository access configuration
+                  - name: SPRING_CLOUD_CONFIG_SERVER_GIT_URI
+                    value: "https://github.com/Saoudyahya/Ecommerce-App-Config-serveur-repo.git"
+                  - name: SPRING_CLOUD_CONFIG_SERVER_GIT_CLONE_ON_START
+                    value: "true"
+                  - name: SPRING_CLOUD_CONFIG_SERVER_GIT_DEFAULT_LABEL
+                    value: "main"
+                # Increase resources for proper startup
+                resources:
+                  requests:
+                    memory: "512Mi"  # Increased from 256Mi
+                    cpu: "250m"      # Increased from 100m
+                  limits:
+                    memory: "1Gi"    # Increased from 512Mi
+                    cpu: "500m"      # Increased from 250m
+                # FIXED: Much more lenient health checks for config server
+                startupProbe:
+                  httpGet:
+                    path: /actuator/health
+                    port: 8888
+                  initialDelaySeconds: 60    # Increased from 30
+                  periodSeconds: 15          # Increased from 10
+                  timeoutSeconds: 10         # Increased from 5
+                  failureThreshold: 30       # Increased from 15 (7.5 minutes total)
+                readinessProbe:
+                  httpGet:
+                    path: /actuator/health
+                    port: 8888
+                  initialDelaySeconds: 90    # Increased from 60
+                  periodSeconds: 20          # Increased from 15
+                  timeoutSeconds: 15         # Increased from 10
+                  failureThreshold: 5
+                livenessProbe:
+                  httpGet:
+                    path: /actuator/health
+                    port: 8888
+                  initialDelaySeconds: 180   # Increased from 120
+                  periodSeconds: 45          # Increased from 30
+                  timeoutSeconds: 15         # Increased from 10
+                  failureThreshold: 3
+            # IMPROVED: Better init container with timeout and retries
+            initContainers:
+              - name: wait-for-eureka
+                image: busybox:1.35
+                command: ['sh', '-c']
+                args:
+                  - |
+                    echo "Testing Eureka connectivity with timeout..."
+                    timeout=300  # 5 minutes timeout
+                    elapsed=0
+                    until nc -z eureka-server.infrastructure.svc.cluster.local 8761 || [ $elapsed -gt $timeout ]; do
+                      echo "Eureka not ready, waiting... ($elapsed/$timeout seconds)"
+                      sleep 10
+                      elapsed=$((elapsed + 10))
+                    done
+                    if [ $elapsed -gt $timeout ]; then
+                      echo "WARNING: Eureka not available after $timeout seconds, proceeding anyway..."
+                    else
+                      echo "Eureka is reachable!"
+                    fi
+                    echo "Waiting additional 15 seconds for Eureka stability..."
+                    sleep 15
+    target:
+      kind: Deployment
       name: config-server
-    spec:
-      template:
-        spec:
-          containers:
-          - name: config-server
-            env:
-            - name: SPRING_PROFILES_ACTIVE
-              value: "dev,docker"
-            - name: LOG_LEVEL
-              value: "DEBUG"
-            resources:
-              requests:
-                memory: "256Mi"
-                cpu: "100m"
-              limits:
-                memory: "512Mi"
-                cpu: "250m"
-  target:
-    kind: Deployment
-    name: config-server
-- patch: |-
-    apiVersion: v1
-    kind: Service
-    metadata:
+
+  # Patch the service to use NodePort for dev access
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: config-server
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            port: 8888
+            targetPort: 8888
+            nodePort: 30888
+    target:
+      kind: Service
       name: config-server
-    spec:
-      type: NodePort
-      ports:
-      - name: http
-        port: 8888
-        targetPort: 8888
-        nodePort: 30888
-  target:
-    kind: Service
-    name: config-server

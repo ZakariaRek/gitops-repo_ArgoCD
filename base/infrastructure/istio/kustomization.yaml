@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: istio-service-mesh
+  namespace: istio-system
+
+resources:
+  - namespace.yaml
+  - installation.yaml
+  - gateway.yaml
+  - virtual-service-api-gateway.yaml
+  - destination-rules.yaml
+  - service-entries.yaml
+  - peer-authentication.yaml
+  - authorization-policy.yaml
+
+labels:
+  - pairs:
+      component: istio-service-mesh
+      managed-by: argocd
+      platform: nexus-commerce
+
+namespace: istio-system
+
+# Istio operator and control plane images
+images:
+  - name: istio/pilot
+    newTag: 1.20.0
+  - name: istio/proxyv2
+    newTag: 1.20.0
