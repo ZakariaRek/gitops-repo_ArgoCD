@@ -16,8 +16,16 @@ data:
         include-stacktrace: always
         include-message: always
         include-binding-errors: always
+      # Add connection timeouts
+      connection-timeout: 60000
+      tomcat:
+        threads:
+          max: 50
+          min-spare: 5
+        max-connections: 200
+        accept-count: 50
     
-    debug: true
+    debug: false  # Disable debug mode for better performance
     
     spring:
       profiles:
@@ -35,7 +43,7 @@ data:
           database: ${SPRING_DATA_MONGODB_DATABASE:User-service}
           username: ${SPRING_DATA_MONGODB_USERNAME:userservice}
           password: ${SPRING_DATA_MONGODB_PASSWORD:userservice123}
-          uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice:userservice123@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin}
+          uri: ${SPRING_DATA_MONGODB_URI:mongodb://userservice:userservice123@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin&connectTimeoutMS=30000&socketTimeoutMS=30000&serverSelectionTimeoutMS=30000}
       
       # Zipkin Configuration - Disabled for now
       zipkin:
@@ -47,21 +55,49 @@ data:
         sampler:
           probability: 0.0  # Disabled
       
-      # Kafka Configuration - Fixed to use Kubernetes service
+      # OPTIMIZED Kafka Configuration - Reduced resource consumption
       kafka:
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+        # Connection and timeout settings
+        client-id: user-service-${random.uuid}
+        properties:
+          # Connection settings to prevent resource exhaustion
+          connections.max.idle.ms: 300000  # 5 minutes
+          request.timeout.ms: 30000        # 30 seconds
+          session.timeout.ms: 30000        # 30 seconds
+          heartbeat.interval.ms: 10000     # 10 seconds
+          metadata.max.age.ms: 300000      # 5 minutes
+          # Reduce network traffic
+          fetch.min.bytes: 1024
+          fetch.max.wait.ms: 5000
         producer:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          # Producer optimizations
+          batch-size: 16384
+          linger-ms: 5
+          buffer-memory: 33554432
+          # Reduce retries and timeout for faster failure
+          retries: 2
+          request-timeout-ms: 30000
+          delivery-timeout-ms: 120000
           properties:
             spring.json.add.type.headers: false
-            acks: all
-            retries: 3
-            enable.idempotence: true
+            acks: 1  # Reduced from 'all' for better performance
+            enable.idempotence: false  # Disabled for better performance
+            compression.type: snappy
         consumer:
           group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:user-service-group}
           auto-offset-reset: earliest
-          enable-auto-commit: false
+          enable-auto-commit: true  # CHANGED: Enable auto-commit to reduce load
+          auto-commit-interval: 5000
+          # Consumer optimizations
+          max-poll-records: 10  # Reduced batch size
+          max-poll-interval-ms: 300000  # 5 minutes
+          session-timeout-ms: 30000     # 30 seconds
+          heartbeat-interval-ms: 10000   # 10 seconds
+          fetch-min-size: 1024
+          fetch-max-wait: 5000
           key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           properties:
@@ -70,41 +106,62 @@ data:
             spring.json.trusted.packages: "*"
             spring.json.use.type.headers: false
             spring.json.value.default.type: java.lang.Object
+        # Listener configuration
+        listener:
+          concurrency: 1  # Single thread to reduce resource usage
+          poll-timeout: 3000
+          type: single
+          ack-mode: batch
     
-    
-    # Eureka Configuration - Fixed to use Kubernetes service
+    # OPTIMIZED Eureka Configuration - Reduced frequency and added timeouts
     eureka:
       instance:
         preferIpAddress: true
         instanceId: ${spring.application.name}:${server.port}
         hostname: user-service
+        # Increased lease renewal and expiration intervals
+        lease-renewal-interval-in-seconds: 30     # Increased from 5
+        lease-expiration-duration-in-seconds: 90  # Increased from default
         metadataMap:
           instanceId: ${spring.application.name}:${server.port}
       client:
-        registryFetchIntervalSeconds: 5
-        instanceInfoReplicationIntervalSeconds: 5
-        initialInstanceInfoReplicationIntervalSeconds: 5
-        eurekaServiceUrlPollIntervalSeconds: 5
+        # REDUCED frequency to prevent overwhelming Eureka server
+        registryFetchIntervalSeconds: 30          # Increased from 5
+        instanceInfoReplicationIntervalSeconds: 30 # Increased from 5
+        initialInstanceInfoReplicationIntervalSeconds: 40 # Increased from 5
+        eurekaServiceUrlPollIntervalSeconds: 300   # Increased from 5
+        # Connection and timeout settings
+        eureka-server-connect-timeout-seconds: 30
+        eureka-server-read-timeout-seconds: 30
+        eureka-connection-idle-timeout-seconds: 30
         registerWithEureka: true
         fetchRegistry: true
+        # Registry processing optimizations
+        disable-delta: false
+        cache-refresh-executor-thread-pool-size: 2
+        cache-refresh-executor-exponential-back-off-bound: 10
         serviceUrl:
           defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
     
-    # Management and Monitoring
+    # Management and Monitoring - Optimized
     management:
       health:
         mongo:
           enabled: true
+        eureka:
+          enabled: true
+        kafka:
+          enabled: true
       endpoint:
         health:
-          show-details: "ALWAYS"
-          show-components: "ALWAYS"
+          show-details: "WHEN_AUTHORIZED"  # Reduced verbosity
+          show-components: "WHEN_AUTHORIZED"
         metrics:
           enabled: true
       endpoints:
         web:
           exposure:
-            include: "*"
+            include: "health,info,metrics,prometheus"  # Reduced endpoints
           cors:
             allowed-origins: "*"
             allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
@@ -139,34 +196,35 @@ data:
       cleanup:
         schedule: "0 0 */6 * * *" # Every 6 hours
     
-    # Logging Configuration - Enhanced to override any logback.xml
+    # OPTIMIZED Logging Configuration 
     logging:
-      # Explicitly disable external logback configuration
-      config: classpath:empty-logback.xml  # Points to empty/minimal logback config
       level:
         root: INFO
-        com.Ecommerce.User_Service: DEBUG
-        org.springframework.kafka: INFO
-        org.apache.kafka: WARN
-        org.springframework.cloud.netflix.eureka: INFO
-        org.springframework.security: INFO
-        org.springframework.web: INFO
-        org.springframework.boot.actuate: INFO
+        com.Ecommerce.User_Service: INFO  # Reduced from DEBUG
+        org.springframework.kafka: WARN   # Reduced noise
+        org.apache.kafka: ERROR          # Reduced noise
+        org.springframework.cloud.netflix.eureka: WARN  # Reduced noise
+        org.springframework.security: WARN
+        org.springframework.web: WARN
+        org.springframework.boot.actuate: WARN
+        # Reduce Eureka noise
+        com.netflix.discovery: WARN
+        com.netflix.eureka: WARN
       pattern:
-        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] [${spring.application.name}] %logger{36} - %msg%n"
-        file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] [${spring.application.name}] %logger{36} - %msg%n"
-      # Send logs to stdout only (container best practice)
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [${spring.application.name}] %logger{40} - %msg%n"
       file:
         name: /dev/stdout
-      # Disable all file appenders
       logback:
         rollingpolicy:
           max-file-size: 0MB  # Disable file logging
-
-  # Empty logback configuration to override any default logback.xml
-  empty-logback.xml: |
-    <?xml version="1.0" encoding="UTF-8"?>
-    <configuration>
-        <!-- Empty configuration to disable any default logback.xml -->
-        <!-- All logging configuration is handled by Spring Boot YAML -->
-    </configuration>
+    
+    # Task Executor Configuration
+    task:
+      execution:
+        pool:
+          core-size: 5
+          max-size: 10
+          queue-capacity: 25
+      scheduling:
+        pool:
+          size: 2
