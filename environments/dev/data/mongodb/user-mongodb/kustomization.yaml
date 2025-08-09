@@ -32,8 +32,8 @@ replicas:
 configMapGenerator:
   - name: user-mongodb-dev-config
     literals:
-      - MONGO_LOG_LEVEL=debug
-      - MONGO_SLOW_OP_THRESHOLD=100
+      - MONGO_LOG_LEVEL=info        # Changed from debug to reduce noise
+      - MONGO_SLOW_OP_THRESHOLD=1000  # Increased threshold
       - ENVIRONMENT=development
 
 # Use patches to modify existing resources
@@ -51,7 +51,7 @@ patches:
       kind: Secret
       name: user-mongodb-secret
 
-  # Patch StatefulSet for dev resources and single replica
+  # Patch StatefulSet for dev resources and single replica with better startup handling
   - patch: |-
       apiVersion: apps/v1
       kind: StatefulSet
@@ -64,11 +64,41 @@ patches:
               - name: mongodb
                 resources:
                   requests:
-                    memory: "256Mi"
-                    cpu: "100m"
+                    memory: "512Mi"    # Increased from 256Mi
+                    cpu: "250m"        # Increased from 100m
                   limits:
-                    memory: "512Mi"
-                    cpu: "250m"
+                    memory: "1Gi"      # Increased from 512Mi
+                    cpu: "500m"        # Increased from 250m
+                # More lenient probes for dev environment
+                startupProbe:
+                  tcpSocket:
+                    port: 27017
+                  initialDelaySeconds: 45    # Longer initial delay
+                  periodSeconds: 15          # Longer period
+                  timeoutSeconds: 10
+                  failureThreshold: 40       # More failures allowed (10 minutes)
+                readinessProbe:
+                  exec:
+                    command:
+                      - bash
+                      - -c
+                      - |
+                        mongosh --username $MONGO_INITDB_ROOT_USERNAME --password $MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval "db.adminCommand('ping')" --quiet
+                  initialDelaySeconds: 90    # Much longer for dev
+                  periodSeconds: 20
+                  timeoutSeconds: 25
+                  failureThreshold: 6
+                livenessProbe:
+                  exec:
+                    command:
+                      - bash
+                      - -c
+                      - |
+                        mongosh --username $MONGO_INITDB_ROOT_USERNAME --password $MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval "db.adminCommand('ping')" --quiet
+                  initialDelaySeconds: 150   # Much longer for dev
+                  periodSeconds: 40
+                  timeoutSeconds: 25
+                  failureThreshold: 3
     target:
       kind: StatefulSet
       name: user-mongodb
