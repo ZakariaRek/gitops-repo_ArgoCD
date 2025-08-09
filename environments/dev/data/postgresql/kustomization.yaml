@@ -1,3 +1,7 @@
+# 1. Update base/data/postgresql/*/StatefulSet.yaml files
+# Change all image references from postgres:15.4-alpine to postgres:16-alpine
+
+# 2. Update environments/dev/data/postgresql/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -9,6 +13,90 @@ resources:
   - loyalty-postgres
   - payment-postgres
   - shipping-postgres
+
+# Use PostgreSQL 16 consistently
 images:
   - name: postgres
-    newTag: "15.4-alpine"
+    newTag: "16-alpine"  # Updated to match your data directory
+
+# Add version-specific patches if needed
+patches:
+  # Ensure all StatefulSets use PostgreSQL 16
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: order-postgres
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                image: postgres:16-alpine
+                env:
+                  # PostgreSQL 16 specific configurations
+                  - name: POSTGRES_INITDB_ARGS
+                    value: "--auth-local=trust --auth-host=scram-sha-256 --wal-level=replica"
+    target:
+      kind: StatefulSet
+      name: order-postgres
+
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: product-postgres
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                image: postgres:16-alpine
+    target:
+      kind: StatefulSet
+      name: product-postgres
+
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: loyalty-postgres
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                image: postgres:16-alpine
+    target:
+      kind: StatefulSet
+      name: loyalty-postgres
+
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: payment-postgres
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                image: postgres:16-alpine
+    target:
+      kind: StatefulSet
+      name: payment-postgres
+
+  - patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: shipping-postgres
+      spec:
+        template:
+          spec:
+            containers:
+              - name: postgres
+                image: postgres:16-alpine
+    target:
+      kind: StatefulSet
+      name: shipping-postgres
