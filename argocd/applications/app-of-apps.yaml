@@ -24,7 +24,7 @@ spec:
   info:
     - name: 'Deployment Order'
       value: |
-        Wave 0: Istio Service Mesh
+        Wave 0: Istio Service Mesh (Base, Istiod, Gateway)
         Wave 1: Infrastructure (Config Server, Eureka, etc.)
         Wave 2: Data Layer (Databases, Kafka, Redis)
         Wave 3: Microservices
