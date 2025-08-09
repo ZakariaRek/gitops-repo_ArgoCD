@@ -9,7 +9,6 @@ resources:
   - loyalty-postgres
   - payment-postgres
   - shipping-postgres
-
 images:
   - name: postgres
-    newTag: "16"
+    newTag: "15.4-alpine"
