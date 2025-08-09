@@ -70,8 +70,8 @@ data:
             spring.json.trusted.packages: "*"
             spring.json.use.type.headers: false
             spring.json.value.default.type: java.lang.Object
-      
-  
+    
+    
     # Eureka Configuration - Fixed to use Kubernetes service
     eureka:
       instance:
@@ -139,13 +139,34 @@ data:
       cleanup:
         schedule: "0 0 */6 * * *" # Every 6 hours
     
-    # Logging Configuration
+    # Logging Configuration - Enhanced to override any logback.xml
     logging:
+      # Explicitly disable external logback configuration
+      config: classpath:empty-logback.xml  # Points to empty/minimal logback config
       level:
+        root: INFO
         com.Ecommerce.User_Service: DEBUG
-        org.springframework.kafka: INFO  # Reduced noise
+        org.springframework.kafka: INFO
         org.apache.kafka: WARN
         org.springframework.cloud.netflix.eureka: INFO
         org.springframework.security: INFO
+        org.springframework.web: INFO
+        org.springframework.boot.actuate: INFO
       pattern:
-        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [${spring.application.name}] %logger{36} - %msg%n"
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] [${spring.application.name}] %logger{36} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] [${spring.application.name}] %logger{36} - %msg%n"
+      # Send logs to stdout only (container best practice)
+      file:
+        name: /dev/stdout
+      # Disable all file appenders
+      logback:
+        rollingpolicy:
+          max-file-size: 0MB  # Disable file logging
+
+  # Empty logback configuration to override any default logback.xml
+  empty-logback.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <configuration>
+        <!-- Empty configuration to disable any default logback.xml -->
+        <!-- All logging configuration is handled by Spring Boot YAML -->
+    </configuration>
