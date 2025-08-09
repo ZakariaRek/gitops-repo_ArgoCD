@@ -17,11 +17,11 @@ labels:
       component: data
       service: product-service
       tier: database
-      version: "15.4"
+      version: "16-alpine"
 
 images:
   - name: postgres
-    newTag: 15.4-alpine
+    newTag: 16-alpine
 
 namespace: data
 
