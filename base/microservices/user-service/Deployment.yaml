@@ -26,9 +26,9 @@ spec:
             - containerPort: 8081
               name: http
           env:
-            # JVM Options
+            # OPTIMIZED JVM Options - Better memory management and GC tuning
             - name: JAVA_OPTS
-              value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
+              value: "-Xmx1536m -Xms1024m -XX:MaxMetaspaceSize=256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:G1HeapRegionSize=16m -Djava.net.preferIPv4Stack=true -Djava.awt.headless=true -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
 
             # Application Configuration
             - name: SPRING_PROFILES_ACTIVE
@@ -40,27 +40,45 @@ spec:
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api/users"
 
-            # Logging Configuration - Prevent external logback.xml usage
-            - name: LOGGING_CONFIG
-              value: "classpath:empty-logback.xml"
+            # OPTIMIZED Logging Configuration
             - name: LOGGING_LEVEL_ROOT
               value: "INFO"
-            - name: LOGGING_PATTERN_CONSOLE
-              value: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] [${spring.application.name}] %logger{36} - %msg%n"
+            - name: LOGGING_LEVEL_COM_ECOMMERCE_USER_SERVICE
+              value: "INFO"
+            - name: LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_KAFKA
+              value: "WARN"
+            - name: LOGGING_LEVEL_ORG_APACHE_KAFKA
+              value: "ERROR"
+            - name: LOGGING_LEVEL_COM_NETFLIX_DISCOVERY
+              value: "WARN"
+            - name: LOGGING_LEVEL_COM_NETFLIX_EUREKA
+              value: "WARN"
 
-            # Eureka Configuration - Fixed service URL
+            # OPTIMIZED Eureka Configuration with timeouts
             - name: EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE
               value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
             - name: EUREKA_INSTANCE_HOSTNAME
               value: "user-service"
             - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
               value: "true"
+            - name: EUREKA_INSTANCE_LEASE_RENEWAL_INTERVAL_IN_SECONDS
+              value: "30"
+            - name: EUREKA_INSTANCE_LEASE_EXPIRATION_DURATION_IN_SECONDS
+              value: "90"
+            - name: EUREKA_CLIENT_REGISTRY_FETCH_INTERVAL_SECONDS
+              value: "30"
+            - name: EUREKA_CLIENT_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS
+              value: "30"
+            - name: EUREKA_CLIENT_EUREKA_SERVER_CONNECT_TIMEOUT_SECONDS
+              value: "30"
+            - name: EUREKA_CLIENT_EUREKA_SERVER_READ_TIMEOUT_SECONDS
+              value: "30"
 
             # Config Server Configuration
             - name: SPRING_CLOUD_CONFIG_URI
               value: "http://config-server.infrastructure.svc.cluster.local:8888"
 
-            # MongoDB Configuration - Fixed to use proper Kubernetes service
+            # MongoDB Configuration with timeouts
             - name: SPRING_DATA_MONGODB_HOST
               value: "user-mongodb-headless.data.svc.cluster.local"
             - name: SPRING_DATA_MONGODB_PORT
@@ -78,13 +96,27 @@ spec:
                   name: user-service-secrets
                   key: mongodb-password
             - name: SPRING_DATA_MONGODB_URI
-              value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin"
+              value: "mongodb://$(SPRING_DATA_MONGODB_USERNAME):$(SPRING_DATA_MONGODB_PASSWORD)@user-mongodb-headless.data.svc.cluster.local:27017/User-service?authSource=admin&connectTimeoutMS=30000&socketTimeoutMS=30000&serverSelectionTimeoutMS=30000"
 
-            # Kafka Configuration - Fixed to use proper Kubernetes service
+            # OPTIMIZED Kafka Configuration with connection limits
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
               value: "user-service-group"
+            - name: SPRING_KAFKA_PROPERTIES_CONNECTIONS_MAX_IDLE_MS
+              value: "300000"
+            - name: SPRING_KAFKA_PROPERTIES_REQUEST_TIMEOUT_MS
+              value: "30000"
+            - name: SPRING_KAFKA_PROPERTIES_SESSION_TIMEOUT_MS
+              value: "30000"
+            - name: SPRING_KAFKA_CONSUMER_ENABLE_AUTO_COMMIT
+              value: "true"
+            - name: SPRING_KAFKA_CONSUMER_AUTO_COMMIT_INTERVAL
+              value: "5000"
+            - name: SPRING_KAFKA_CONSUMER_MAX_POLL_RECORDS
+              value: "10"
+            - name: SPRING_KAFKA_LISTENER_CONCURRENCY
+              value: "1"
 
             # JWT Configuration
             - name: USER_SERVICE_APP_JWT_SECRET
@@ -95,111 +127,145 @@ spec:
             - name: USER_SERVICE_APP_JWT_EXPIRATION_MS
               value: "86400000"
 
+            # Task Executor Configuration
+            - name: TASK_EXECUTION_POOL_CORE_SIZE
+              value: "5"
+            - name: TASK_EXECUTION_POOL_MAX_SIZE
+              value: "10"
+            - name: TASK_SCHEDULING_POOL_SIZE
+              value: "2"
+
             # Disable Zipkin for now
             - name: SPRING_ZIPKIN_ENABLED
               value: "false"
 
           resources:
             requests:
-              memory: "1Gi"
+              memory: "1.5Gi"    # Increased for better stability
               cpu: "500m"
             limits:
-              memory: "2Gi"
-              cpu: "1000m"
+              memory: "2.5Gi"    # Increased for better stability
+              cpu: "1500m"       # Increased to handle concurrent operations
 
-          # Health Checks - Same as Cart Service timings
+          # OPTIMIZED Health Checks - Longer timeouts to prevent premature kills
           livenessProbe:
             httpGet:
               path: /api/users/actuator/health
               port: 8081
-            initialDelaySeconds: 180
-            periodSeconds: 45
-            timeoutSeconds: 15
+            initialDelaySeconds: 300    # Increased to allow full startup
+            periodSeconds: 60           # Reduced frequency
+            timeoutSeconds: 20          # Increased timeout
             failureThreshold: 5
 
           readinessProbe:
             httpGet:
               path: /api/users/actuator/health/readiness
               port: 8081
-            initialDelaySeconds: 120
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 8
+            initialDelaySeconds: 180    # Increased for better startup
+            periodSeconds: 30           # Reduced frequency
+            timeoutSeconds: 15          # Increased timeout
+            failureThreshold: 10        # More tolerant
 
           startupProbe:
             httpGet:
               path: /api/users/actuator/health
               port: 8081
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 30
+            initialDelaySeconds: 120    # Increased for dependencies
+            periodSeconds: 20           # Reduced frequency
+            timeoutSeconds: 15          # Increased timeout
+            failureThreshold: 40        # Much more tolerant
 
           volumeMounts:
             - name: config-volume
               mountPath: /app/config
-            # Removed logs-volume mount since we're using stdout only
-            # - name: logs-volume
-            #   mountPath: /app/logs
+            - name: tmp-volume
+              mountPath: /tmp
 
       volumes:
         - name: config-volume
           configMap:
             name: user-service-config
-        # Removed logs-volume since we're using stdout only
-        # - name: logs-volume
-        #   emptyDir: {}
+        - name: tmp-volume
+          emptyDir: {}
 
-      # InitContainers - FIXED: Added missing MongoDB wait container
+      # OPTIMIZED InitContainers with better wait logic
       initContainers:
-        # Wait for MongoDB - THIS WAS MISSING
+        # Wait for MongoDB with timeout
         - name: wait-for-mongodb
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
               echo "Waiting for User MongoDB..."
-              until nc -z user-mongodb-headless.data.svc.cluster.local 27017; do 
-                echo "MongoDB not ready, waiting..."
+              timeout=300
+              count=0
+              until nc -z user-mongodb-headless.data.svc.cluster.local 27017 || [ $count -eq $timeout ]; do 
+                echo "MongoDB not ready, waiting... ($count/$timeout)"
                 sleep 3
+                count=$((count+3))
               done
+              if [ $count -eq $timeout ]; then
+                echo "MongoDB wait timeout reached!"
+                exit 1
+              fi
               echo "User MongoDB is ready!"
 
-        # Wait for Kafka
+        # Wait for Kafka with timeout
         - name: wait-for-kafka
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
               echo "Waiting for Kafka..."
-              until nc -z kafka-service.data.svc.cluster.local 9092; do 
-                echo "Kafka not ready, waiting..."
+              timeout=300
+              count=0
+              until nc -z kafka-service.data.svc.cluster.local 9092 || [ $count -eq $timeout ]; do 
+                echo "Kafka not ready, waiting... ($count/$timeout)"
                 sleep 3
+                count=$((count+3))
               done
+              if [ $count -eq $timeout ]; then
+                echo "Kafka wait timeout reached!"
+                exit 1
+              fi
               echo "Kafka is ready!"
 
-        # Wait for Eureka
+        # Wait for Eureka with timeout
         - name: wait-for-eureka
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
               echo "Waiting for Eureka..."
-              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
-                echo "Eureka not ready, waiting..."
-                sleep 3
+              timeout=300
+              count=0
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761 || [ $count -eq $timeout ]; do 
+                echo "Eureka not ready, waiting... ($count/$timeout)"
+                sleep 5
+                count=$((count+5))
               done
+              if [ $count -eq $timeout ]; then
+                echo "Eureka wait timeout reached!"
+                exit 1
+              fi
               echo "Eureka is ready!"
 
-        # Wait for Config Server
+        # Wait for Config Server with timeout
         - name: wait-for-config-server
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
               echo "Waiting for Config Server..."
-              until nc -z config-server.infrastructure.svc.cluster.local 8888; do 
-                echo "Config Server not ready, waiting..."
+              timeout=300
+              count=0
+              until nc -z config-server.infrastructure.svc.cluster.local 8888 || [ $count -eq $timeout ]; do 
+                echo "Config Server not ready, waiting... ($count/$timeout)"
                 sleep 3
+                count=$((count+3))
               done
+              if [ $count -eq $timeout ]; then
+                echo "Config Server wait timeout reached!"
+                exit 1
+              fi
               echo "Config Server is ready!"
