@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: nexus-observability
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"  # Deploy after microservices
 spec:
   project: default
   source:

@@ -1,0 +1,32 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: kiali-vs
+  namespace: observability
+  labels:
+    app: kiali
+    component: istio-routing
+    environment: dev
+spec:
+  hosts:
+    - "kiali.nexus-commerce.local"
+  gateways:
+    - istio-system/nexus-commerce-dev-gateway
+  http:
+    - match:
+        - uri:
+            prefix: "/"
+      route:
+        - destination:
+            host: kiali.observability.svc.cluster.local
+            port:
+              number: 20001
+      timeout: 60s
+      headers:
+        request:
+          add:
+            x-forwarded-proto: https
+        response:
+          add:
+            x-content-type-options: nosniff
+            x-frame-options: SAMEORIGIN
