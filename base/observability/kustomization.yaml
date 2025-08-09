@@ -8,7 +8,7 @@ metadata:
 resources:
   - namespace.yaml
   - elk
-  - kiali
+  - Kiali  # Changed from 'kiali' to 'Kiali' to match actual directory
 
 labels:
   - pairs:
