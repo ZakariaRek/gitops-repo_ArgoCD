@@ -58,9 +58,7 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
-            - name: postgres-init
-              mountPath: /docker-entrypoint-initdb.d
-              readOnly: true
+            # REMOVED: postgres-init volume mount since ConfigMap doesn't exist
             - name: postgres-config
               mountPath: /etc/postgresql
               readOnly: true
@@ -101,9 +99,7 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 12
       volumes:
-        - name: postgres-init
-          configMap:
-            name: product-postgres-init
+        # REMOVED: postgres-init volume since ConfigMap doesn't exist
         - name: postgres-config
           configMap:
             name: product-postgres-config
