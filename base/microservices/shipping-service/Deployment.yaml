@@ -6,8 +6,9 @@ metadata:
   labels:
     app: shipping-service
     component: microservices
+    tier: backend
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: shipping-service
@@ -16,223 +17,43 @@ spec:
       labels:
         app: shipping-service
         component: microservices
+        tier: backend
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8082"
+        prometheus.io/port: "8085"
         prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: shipping-service
           image: yahyazakaria123/ecommerce-app-shipping-service:latest
           ports:
-            - containerPort: 8082
+            - containerPort: 8085
               name: http
               protocol: TCP
+
+          # Load all non-sensitive environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: shipping-service-config
+
+          # Sensitive environment variables from Secret
           env:
-            # Go Application Settings
-            - name: SERVER_PORT
-              value: "8082"
-            - name: GIN_MODE
-              value: "release"
-            - name: GOOS
-              value: "linux"
-            - name: GOARCH
-              value: "amd64"
-
-            # Service Configuration
-            - name: SERVICE_NAME
-              value: "shipping-service"
-            - name: APP_NAME
-              value: "SHIPPING-SERVICE"
-            - name: SERVICE_VERSION
-              value: "2.0.0"
-            - name: ENVIRONMENT
-              value: "docker"
-
-            # Database Configuration - Multiple naming conventions
-            - name: DB_HOST
-              value: "shipping-postgres-service.data.svc.cluster.local"
-            - name: DATABASE_HOST
-              value: "shipping-postgres-service.data.svc.cluster.local"
-            - name: POSTGRES_HOST
-              value: "shipping-postgres-service.data.svc.cluster.local"
-
-            - name: DB_PORT
-              value: "5432"
-            - name: DATABASE_PORT
-              value: "5432"
-            - name: POSTGRES_PORT
-              value: "5432"
-
-            - name: DB_NAME
-              value: "shippingdb"
-            - name: DATABASE_NAME
-              value: "shippingdb"
-            - name: POSTGRES_DB
-              value: "shippingdb"
-
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: shipping-service-secrets
                   key: db-username
-            - name: DATABASE_USER
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: db-username
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: db-username
-
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: shipping-service-secrets
                   key: db-password
-            - name: DATABASE_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: db-password
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: db-password
 
-            - name: DB_SSLMODE
-              value: "disable"
-            - name: DATABASE_SSLMODE
-              value: "disable"
-            - name: DB_MAX_OPEN_CONNS
-              value: "25"
-            - name: DB_MAX_IDLE_CONNS
-              value: "5"
-
-            # Complete Database URL for convenience
-            - name: DATABASE_URL
-              value: "postgres://$(DB_USER):$(DB_PASSWORD)@shipping-postgres-service.data.svc.cluster.local:5432/shippingdb?sslmode=disable"
-            - name: DB_URL
-              value: "postgres://$(DB_USER):$(DB_PASSWORD)@shipping-postgres-service.data.svc.cluster.local:5432/shippingdb?sslmode=disable"
-
-            # Kafka Configuration - Multiple naming conventions
-            - name: KAFKA_BROKERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: KAFKA_BOOTSTRAP_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: KAFKA_SERVERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: KAFKA_URL
-              value: "kafka-service.data.svc.cluster.local:9092"
-
-            - name: KAFKA_CONSUMER_GROUP
-              value: "shipping-service-group"
-            - name: KAFKA_CONSUMER_GROUP_ID
-              value: "shipping-service-group"
-            - name: KAFKA_GROUP_ID
-              value: "shipping-service-group"
-
-            - name: KAFKA_ENABLE_CONSUMER
-              value: "true"
-            - name: KAFKA_CONSUMER_TOPICS
-              value: "shipping-created,shipping-updated,shipping-status-changed,shipping-deleted,tracking-created,tracking-updated,tracking-deleted"
-
-            # Eureka Configuration - Multiple naming conventions
-            - name: EUREKA_URL
-              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - name: EUREKA_SERVER_URL
-              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - name: EUREKA_DEFAULT_ZONE
-              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
-            - name: EUREKA_INSTANCE_HOSTNAME
-              value: "shipping-service"
-            - name: EUREKA_PREFER_IP_ADDRESS
-              value: "true"
-            - name: EUREKA_INSTANCE_ID
-              value: "shipping-service:8082"
-            - name: HOST_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
+            # Set IP address for Eureka registration
             - name: SERVICE_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-
-            # Config Server Configuration
-            - name: CONFIG_SERVER_URL
-              value: "http://config-server.infrastructure.svc.cluster.local:8888"
-            - name: CONFIG_PROFILE
-              value: "docker"
-            - name: CONFIG_LABEL
-              value: "main"
-
-            # Kafka Topic Configuration
-            - name: KAFKA_SHIPPING_CREATED_TOPIC
-              value: "shipping-created"
-            - name: KAFKA_SHIPPING_UPDATED_TOPIC
-              value: "shipping-updated"
-            - name: KAFKA_SHIPPING_STATUS_CHANGED_TOPIC
-              value: "shipping-status-changed"
-            - name: KAFKA_SHIPPING_DELETED_TOPIC
-              value: "shipping-deleted"
-            - name: KAFKA_SHIPPING_ORDER_UPDATE_TOPIC
-              value: "shipping-update"
-            - name: KAFKA_TRACKING_CREATED_TOPIC
-              value: "tracking-created"
-            - name: KAFKA_TRACKING_UPDATED_TOPIC
-              value: "tracking-updated"
-            - name: KAFKA_TRACKING_DELETED_TOPIC
-              value: "tracking-deleted"
-
-            # Service Feature Flags
-            - name: USE_SHIPPING_ONLY
-              value: "false"
-            - name: USE_TRACKING_ONLY
-              value: "false"
-            - name: ENABLE_GPS_TRACKING
-              value: "true"
-            - name: ENABLE_REAL_TIME_UPDATES
-              value: "true"
-            - name: ENABLE_ADDRESS_MANAGEMENT
-              value: "true"
-            - name: ENABLE_LOCATION_UPDATES
-              value: "true"
-
-            # Security Configuration
-            - name: JWT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: jwt-secret
-            - name: ENCRYPTION_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: encryption-key
-
-            # Monitoring and Logging
-            - name: LOG_LEVEL
-              value: "INFO"
-            - name: LOG_FORMAT
-              value: "json"
-            - name: ENABLE_METRICS
-              value: "true"
-            - name: ENABLE_HEALTH_CHECK
-              value: "true"
-
-            # Performance and Resource Limits
-            - name: MAX_CONCURRENT_REQUESTS
-              value: "100"
-            - name: REQUEST_TIMEOUT
-              value: "30s"
-            - name: DATABASE_TIMEOUT
-              value: "10s"
-            - name: KAFKA_TIMEOUT
-              value: "5s"
 
           resources:
             requests:
@@ -242,99 +63,125 @@ spec:
               memory: "1Gi"
               cpu: "500m"
 
-          # Health Checks for Go Application
+          # Health checks for Go application
           livenessProbe:
             httpGet:
               path: /health
-              port: 8082
+              port: 8085
               scheme: HTTP
             initialDelaySeconds: 60
             periodSeconds: 30
             timeoutSeconds: 10
             failureThreshold: 3
-            successThreshold: 1
 
           readinessProbe:
             httpGet:
               path: /health
-              port: 8082
+              port: 8085
               scheme: HTTP
             initialDelaySeconds: 30
-            periodSeconds: 10
+            periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
-            successThreshold: 1
 
           startupProbe:
             httpGet:
               path: /health
-              port: 8082
+              port: 8085
               scheme: HTTP
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 12
-            successThreshold: 1
 
-          # Security Context
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 65534  # nobody user
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-
-          # Volume Mounts
+          # Volume mounts
           volumeMounts:
-            - name: config-volume
-              mountPath: /app/config
-              readOnly: true
-            - name: logs-volume
-              mountPath: /app/logs
             - name: tmp-volume
               mountPath: /tmp
 
       # Volumes
       volumes:
-        - name: config-volume
-          configMap:
-            name: shipping-service-config
-        - name: logs-volume
-          emptyDir: {}
         - name: tmp-volume
           emptyDir: {}
 
-      # Init Containers for Dependencies
+      # Init containers to wait for dependencies
       initContainers:
+        # Wait for PostgreSQL
         - name: wait-for-postgres
           image: busybox:1.35
-          command: ['sh', '-c', 'until nc -z shipping-postgres-service.data.svc.cluster.local 5432; do echo waiting for postgres; sleep 2; done;']
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for PostgreSQL..."
+              timeout=300
+              count=0
+              until nc -z shipping-postgres-service.data.svc.cluster.local 5432 || [ $count -eq $timeout ]; do 
+                echo "PostgreSQL not ready, waiting... ($count/$timeout)"
+                sleep 3
+                count=$((count+3))
+              done
+              if [ $count -eq $timeout ]; then
+                echo "PostgreSQL wait timeout reached!"
+                exit 1
+              fi
+              echo "PostgreSQL is ready!"
+
+        # Wait for Kafka
         - name: wait-for-kafka
           image: busybox:1.35
-          command: ['sh', '-c', 'until nc -z kafka-service.data.svc.cluster.local 9092; do echo waiting for kafka; sleep 2; done;']
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Kafka..."
+              timeout=300
+              count=0
+              until nc -z kafka-service.data.svc.cluster.local 9092 || [ $count -eq $timeout ]; do 
+                echo "Kafka not ready, waiting... ($count/$timeout)"
+                sleep 3
+                count=$((count+3))
+              done
+              if [ $count -eq $timeout ]; then
+                echo "Kafka wait timeout reached!"
+                exit 1
+              fi
+              echo "Kafka is ready!"
+
+        # Wait for Eureka
         - name: wait-for-eureka
           image: busybox:1.35
-          command: ['sh', '-c', 'until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do echo waiting for eureka; sleep 2; done;']
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Eureka..."
+              timeout=300
+              count=0
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761 || [ $count -eq $timeout ]; do 
+                echo "Eureka not ready, waiting... ($count/$timeout)"
+                sleep 5
+                count=$((count+5))
+              done
+              if [ $count -eq $timeout ]; then
+                echo "Eureka wait timeout reached!"
+                exit 1
+              fi
+              echo "Eureka is ready!"
+
+        # Wait for Config Server
         - name: wait-for-config-server
           image: busybox:1.35
-          command: ['sh', '-c', 'until nc -z config-server.infrastructure.svc.cluster.local 8888; do echo waiting for config server; sleep 2; done;']
-      
-      # Security and Scheduling
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
-        fsGroup: 65534
-      
-      # Service Account (for RBAC if needed)
-      serviceAccountName: default
-      
-      # Restart Policy
-      restartPolicy: Always
-      
-      # DNS Policy
-      dnsPolicy: ClusterFirst
-      
-      # Termination Grace Period
-      terminationGracePeriodSeconds: 30
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Config Server..."
+              timeout=300
+              count=0
+              until nc -z config-server.infrastructure.svc.cluster.local 8888 || [ $count -eq $timeout ]; do 
+                echo "Config Server not ready, waiting... ($count/$timeout)"
+                sleep 3
+                count=$((count+3))
+              done
+              if [ $count -eq $timeout ]; then
+                echo "Config Server wait timeout reached!"
+                exit 1
+              fi
+              echo "Config Server is ready!"

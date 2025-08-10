@@ -7,27 +7,15 @@ metadata:
     app: shipping-service
     component: microservices
   annotations:
-    # Service annotations for monitoring and discovery
     prometheus.io/scrape: "true"
-    prometheus.io/port: "8082"
+    prometheus.io/port: "8085"
     prometheus.io/path: "/metrics"
-    service.beta.kubernetes.io/do-loadbalancer-protocol: "http"
-    service.beta.kubernetes.io/do-loadbalancer-tls-ports: "443"
 spec:
   selector:
     app: shipping-service
   ports:
     - name: http
-      port: 8082
-      targetPort: 8082
-      protocol: TCP
-    - name: metrics
-      port: 9090
-      targetPort: 8082
+      port: 8085
+      targetPort: 8085
       protocol: TCP
   type: ClusterIP
-  # Session affinity for stateful operations
-  sessionAffinity: ClientIP
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 300  # 5 minutes

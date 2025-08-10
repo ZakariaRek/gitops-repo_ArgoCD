@@ -6,31 +6,29 @@ metadata:
   namespace: microservices
 
 resources:
-  - Deployment.yaml
-  - Service.yaml
   - ConfigMap.yaml
   - Secret.yaml
+  - Deployment.yaml
+  - Service.yaml
 
-# Use 'labels' instead of deprecated 'commonLabels'
 labels:
   - pairs:
       app: shipping-service
       component: microservices
-      version: latest
-      tier: business-logic
-      service-type: shipping-logistics
+      tier: backend
+      version: "2.0.0"
+
+namespace: microservices
 
 images:
   - name: yahyazakaria123/ecommerce-app-shipping-service
     newTag: latest
 
-namespace: microservices
-
 replicas:
   - name: shipping-service
-    count: 2
+    count: 1
 
-# Configuration patches for shipping service
+# Add annotations for better management
 patches:
   - patch: |-
       - op: add
@@ -46,19 +44,4 @@ patches:
       group: apps
       version: v1
       kind: Deployment
-      name: shipping-service
-
-  - patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          app.kubernetes.io/name: shipping-service
-          app.kubernetes.io/instance: shipping-service-instance
-          app.kubernetes.io/version: "2.0.0"
-          app.kubernetes.io/component: shipping-logistics
-          app.kubernetes.io/part-of: ecommerce-platform
-          app.kubernetes.io/managed-by: kustomize
-    target:
-      version: v1
-      kind: Service
       name: shipping-service
