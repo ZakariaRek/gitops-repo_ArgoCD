@@ -1,269 +1,315 @@
-# 🚀 Nexus Commerce - GitOps Repository with ArgoCD
+# 🛒 NexusCommerce Microservices Platform
 
 <div align="center">
 
-![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/kubernetes-%23326ce5.svg?style=for-the-badge&logo=kubernetes&logoColor=white)
-![Kustomize](https://img.shields.io/badge/Kustomize-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
-![GitOps](https://img.shields.io/badge/GitOps-100000?style=for-the-badge&logo=git&logoColor=white)
+![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?style=for-the-badge&logo=argo&logoColor=white)
+![Istio](https://img.shields.io/badge/Istio-466BB0?style=for-the-badge&logo=istio&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-000?style=for-the-badge&logo=apachekafka)
+![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
+![Elastic](https://img.shields.io/badge/-ElasticSearch-005571?style=for-the-badge&logo=elasticsearch)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.28+-blue.svg)](https://kubernetes.io/)
-[![ArgoCD](https://img.shields.io/badge/ArgoCD-2.8+-orange.svg)](https://argoproj.github.io/cd/)
-[![Kustomize](https://img.shields.io/badge/Kustomize-5.0+-green.svg)](https://kustomize.io/)
+**A cloud-native, scalable e-commerce microservices platform built with GitOps principles**
 
-*Declarative GitOps deployment for Nexus Commerce microservices platform*
+[🚀 Quick Start](#-quick-start) • [📖 Documentation](#-documentation) • [🏗️ Architecture](#️-architecture) • [🔧 Configuration](#-configuration)
 
 </div>
+
+---
 
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
-- [GitOps Architecture](#-gitops-architecture)
-- [Repository Structure](#-repository-structure)
-- [ArgoCD Applications](#-argocd-applications)
+- [Architecture](#️-architecture)
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
 - [Quick Start](#-quick-start)
-- [Deployment Layers](#-deployment-layers)
-- [Environment Management](#-environment-management)
-- [Monitoring & Health Checks](#-monitoring--health-checks)
-- [Troubleshooting](#-troubleshooting)
+- [Project Structure](#-project-structure)
+- [Services](#-services)
+- [Infrastructure](#-infrastructure)
+- [Monitoring & Observability](#-monitoring--observability)
+- [Development](#-development)
+- [Production Deployment](#-production-deployment)
 - [Contributing](#-contributing)
+- [License](#-license)
 
-## 🎯 Overview
+---
 
-**Nexus Commerce GitOps Repository** is the single source of truth for deploying our cloud-native e-commerce microservices platform using **ArgoCD** and **GitOps** principles. This repository contains all Kubernetes manifests, configurations, and deployment automation for multiple environments.
+## 🌟 Overview
 
-### 🌟 Key Features
+NexusCommerce is a modern, cloud-native e-commerce platform built using microservices architecture and deployed with GitOps principles using ArgoCD. The platform demonstrates best practices for building scalable, resilient, and observable distributed systems.
 
-- **🔄 GitOps Workflow**: Automated deployments triggered by Git commits
-- **🏗️ App of Apps Pattern**: Hierarchical application management with ArgoCD
-- **📦 Kustomize Integration**: Environment-specific configuration overlays
-- **🔧 Multi-Environment Support**: Dev, Staging, Production configurations
-- **🚀 Auto-Sync & Self-Healing**: Automated drift detection and correction
-- **📊 Declarative Infrastructure**: Complete infrastructure as code
-- **🔒 Security & Compliance**: RBAC, secrets management, and audit trails
+### 🎯 Key Highlights
 
-## 🏗️ GitOps Architecture
+- **🔄 GitOps Workflow**: Fully automated deployments with ArgoCD
+- **🕸️ Service Mesh**: Traffic management with Istio
+- **📊 Observability**: Complete monitoring stack (ELK, Prometheus, Grafana, Zipkin)
+- **🔒 Security**: mTLS, RBAC, and security policies
+- **🌍 Multi-Environment**: Dev, Staging, and Production configurations
+- **📈 Scalable**: Horizontal pod autoscaling and load balancing
 
-### High-Level GitOps Flow
+---
 
-```mermaid
-graph TB
-    subgraph "Development Workflow"
-        DEV[👨‍💻 Developer] --> COMMIT[📝 Git Commit]
-        COMMIT --> PUSH[⬆️ Git Push]
-        PUSH --> REPO[📁 GitOps Repository]
-    end
-    
-    subgraph "ArgoCD GitOps Engine"
-        REPO --> ARGOCD[🔄 ArgoCD Controller]
-        ARGOCD --> SYNC[🔄 Auto-Sync]
-        SYNC --> COMPARE[🔍 State Comparison]
-        COMPARE --> DEPLOY[🚀 Deploy Changes]
-    end
-    
-    subgraph "Kubernetes Infrastructure"
-        DEPLOY --> K8S[☸️ Kubernetes Cluster]
-        K8S --> APPS[🎯 Applications]
-        APPS --> SERVICES[🔧 Microservices]
-        SERVICES --> INFRA[🏗️ Infrastructure]
-    end
-    
-    subgraph "Monitoring & Feedback"
-        K8S --> HEALTH[💊 Health Checks]
-        HEALTH --> ALERTS[🚨 Alerts]
-        ALERTS --> DASHBOARDS[📊 Dashboards]
-        DASHBOARDS --> DEV
-    end
+## 🏗️ Architecture
 
-    style ARGOCD fill:#ef7b4d,color:#fff
-    style K8S fill:#326ce5,color:#fff
-    style REPO fill:#28a745,color:#fff
-    style DEPLOY fill:#fd7e14,color:#fff
-```
-
-### ArgoCD App of Apps Architecture
+### System Architecture
 
 ```mermaid
 graph TB
-    subgraph "ArgoCD Management"
-        ROOT[🎯 App of Apps<br/>nexus-commerce-app-of-apps]
-        ROOT --> INFRA_APP[🏗️ Infrastructure App<br/>nexus-infrastructure]
-        ROOT --> MICRO_APP[🔧 Microservices App<br/>nexus-microservices]
-        ROOT --> DATA_APP[💾 Data Layer App<br/>nexus-data-layer]
-        ROOT --> OBS_APP[📊 Observability App<br/>nexus-observability]
-        ROOT --> INGRESS_APP[🌐 Ingress App<br/>nexus-ingress]
+    subgraph "Client Layer"
+        WEB[Web Frontend]
+        MOBILE[Mobile App]
+        API_CLIENT[API Clients]
     end
-    
-    subgraph "Infrastructure Layer"
-        INFRA_APP --> CONFIG[⚙️ Config Server<br/>Port: 8888]
-        INFRA_APP --> EUREKA[🗺️ Eureka Server<br/>Port: 8761]
-        INFRA_APP --> GATEWAY[🌐 API Gateway<br/>Port: 8099]
+
+    subgraph "Ingress & Gateway"
+        NGINX[NGINX Ingress]
+        ISTIO_GW[Istio Gateway]
+        API_GW[API Gateway]
     end
-    
+
     subgraph "Microservices Layer"
-        MICRO_APP --> USER[👤 User Service<br/>Port: 8080]
-        MICRO_APP --> PRODUCT[📦 Product Service<br/>Port: 8081]
-        MICRO_APP --> CART[🛒 Cart Service<br/>Port: 8082]
-        MICRO_APP --> ORDER[📋 Order Service<br/>Port: 8083]
+        USER[User Service]
+        PRODUCT[Product Service]
+        CART[Cart Service]
+        ORDER[Order Service]
+        PAYMENT[Payment Service]
+        SHIPPING[Shipping Service]
+        LOYALTY[Loyalty Service]
+        NOTIFICATION[Notification Service]
     end
-    
+
+    subgraph "Infrastructure Services"
+        EUREKA[Service Discovery]
+        CONFIG[Config Server]
+        ZIPKIN[Distributed Tracing]
+    end
+
     subgraph "Data Layer"
-        DATA_APP --> POSTGRES[🐘 PostgreSQL<br/>Port: 5432]
-        DATA_APP --> REDIS[🔴 Redis<br/>Port: 6379]
-        DATA_APP --> KAFKA[📡 Apache Kafka<br/>Port: 9092]
+        MONGO[(MongoDB)]
+        POSTGRES[(PostgreSQL)]
+        REDIS[(Redis Cache)]
+        KAFKA[Apache Kafka]
+        ZOOKEEPER[Zookeeper]
     end
-    
-    subgraph "Ingress & Networking"
-        INGRESS_APP --> NGINX[🌐 NGINX Ingress<br/>Ports: 80/443]
-        NGINX --> LB[⚖️ Load Balancer]
-    end
-    
+
     subgraph "Observability Stack"
-        OBS_APP --> PROMETHEUS[📈 Prometheus<br/>Port: 9090]
-        OBS_APP --> GRAFANA[📊 Grafana<br/>Port: 3000]
-        OBS_APP --> ZIPKIN[🔍 Zipkin<br/>Port: 9411]
+        ELASTICSEARCH[(Elasticsearch)]
+        LOGSTASH[Logstash]
+        KIBANA[Kibana]
+        PROMETHEUS[Prometheus]
+        GRAFANA[Grafana]
+        KIALI[Kiali]
     end
 
-    style ROOT fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    style INFRA_APP fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style MICRO_APP fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    style DATA_APP fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
-    style OBS_APP fill:#fce4ec,stroke:#880e4f,stroke-width:2px
-    style INGRESS_APP fill:#f1f8e9,stroke:#33691e,stroke-width:2px
+    WEB --> NGINX
+    MOBILE --> NGINX
+    API_CLIENT --> NGINX
+    
+    NGINX --> ISTIO_GW
+    ISTIO_GW --> API_GW
+    
+    API_GW --> USER
+    API_GW --> PRODUCT
+    API_GW --> CART
+    API_GW --> ORDER
+    API_GW --> PAYMENT
+    API_GW --> SHIPPING
+    API_GW --> LOYALTY
+    API_GW --> NOTIFICATION
+    
+    USER --> EUREKA
+    PRODUCT --> EUREKA
+    CART --> EUREKA
+    ORDER --> EUREKA
+    
+    USER --> CONFIG
+    PRODUCT --> CONFIG
+    CART --> CONFIG
+    
+    USER --> MONGO
+    CART --> MONGO
+    PRODUCT --> POSTGRES
+    ORDER --> POSTGRES
+    PAYMENT --> POSTGRES
+    SHIPPING --> POSTGRES
+    LOYALTY --> POSTGRES
+    
+    CART --> REDIS
+    USER --> REDIS
+    
+    ORDER --> KAFKA
+    PAYMENT --> KAFKA
+    NOTIFICATION --> KAFKA
+    
+    USER --> ZIPKIN
+    PRODUCT --> ZIPKIN
+    ORDER --> ZIPKIN
+    
+    LOGSTASH --> ELASTICSEARCH
+    KIBANA --> ELASTICSEARCH
+    PROMETHEUS --> GRAFANA
+    KIALI --> PROMETHEUS
 ```
 
-## 📁 Repository Structure
-
-```
-gitops-repo_ArgoCD/
-│
-├── 📁 argocd/                          # ArgoCD application definitions
-│   ├── 📁 applications/                # App of Apps pattern
-│   │   ├── app-of-apps.yaml           # Root application
-│   │   ├── infrastructure.yaml        # Infrastructure apps
-│   │   ├── microservices.yaml         # Microservices apps
-│   │   ├── data-layer.yaml            # Data layer apps
-│   │   └── observability.yaml         # Monitoring apps
-│   └── 📁 bootstrap/                   # ArgoCD bootstrap configs
-│
-├── 📁 base/                            # Base Kustomize configurations
-│   ├── 📁 infrastructure/             # Core infrastructure services
-│   │   ├── 📁 api-gateway/            # API Gateway configs
-│   │   ├── 📁 config-server/          # Config Server configs
-│   │   ├── 📁 eureka-server/          # Service Discovery configs
-│   │   └── 📁 ingress-nginx/          # Ingress Controller configs
-│   ├── 📁 microservices/              # Microservices base configs
-│   │   ├── 📁 user-service/           # User management service
-│   │   └── 📁 product-service/        # Product catalog service
-│   ├── 📁 data/                       # Data layer services
-│   └── 📁 observability/              # Monitoring & logging
-│
-├── 📁 environments/                    # Environment-specific overlays
-│   ├── 📁 dev/                        # Development environment
-│   │   ├── 📁 infrastructure/         # Dev infrastructure overlays
-│   │   ├── 📁 microservices/          # Dev microservices overlays
-│   │   ├── 📁 data/                   # Dev data layer configs
-│   │   └── 📁 observability/          # Dev monitoring configs
-│   ├── 📁 staging/                    # Staging environment
-│   └── 📁 production/                 # Production environment
-│
-└── README.md                          # This file
-```
-
-### 🎯 Configuration Strategy
+### GitOps Deployment Flow
 
 ```mermaid
 graph LR
-    subgraph "Base Configuration"
-        BASE[📦 Base Manifests<br/>Common configs]
+    subgraph "Development"
+        DEV[Developer]
+        GIT[Git Repository]
     end
     
-    subgraph "Environment Overlays"
-        DEV[🛠️ Development<br/>• 1 replica<br/>• Debug logging<br/>• NodePort services]
-        STAGING[🔧 Staging<br/>• 2 replicas<br/>• Info logging<br/>• LoadBalancer]
-        PROD[🚀 Production<br/>• 3+ replicas<br/>• Error logging<br/>• High availability]
+    subgraph "CI/CD Pipeline"
+        BUILD[Build & Test]
+        IMAGE[Container Images]
+        MANIFEST[Update Manifests]
     end
     
-    BASE --> DEV
-    BASE --> STAGING
-    BASE --> PROD
+    subgraph "GitOps"
+        ARGOCD[ArgoCD]
+        REPO[Config Repository]
+    end
     
-    style BASE fill:#e3f2fd,stroke:#1976d2
-    style DEV fill:#f3e5f5,stroke:#7b1fa2
-    style STAGING fill:#fff3e0,stroke:#f57c00
-    style PROD fill:#e8f5e8,stroke:#388e3c
+    subgraph "Kubernetes Cluster"
+        DEV_NS[Development]
+        STAGING_NS[Staging]
+        PROD_NS[Production]
+    end
+    
+    DEV --> GIT
+    GIT --> BUILD
+    BUILD --> IMAGE
+    IMAGE --> MANIFEST
+    MANIFEST --> REPO
+    
+    ARGOCD --> REPO
+    ARGOCD --> DEV_NS
+    ARGOCD --> STAGING_NS
+    ARGOCD --> PROD_NS
+    
+    REPO -.-> ARGOCD
 ```
 
-## 🎯 ArgoCD Applications
-
-### App of Apps Pattern Implementation
+### Service Mesh Architecture
 
 ```mermaid
 graph TB
-    subgraph "ArgoCD Application Hierarchy"
-        ROOT[🎯 nexus-commerce-app-of-apps<br/>Namespace: argocd<br/>Path: argocd/applications]
+    subgraph "Istio Service Mesh"
+        subgraph "Control Plane"
+            ISTIOD[Istiod]
+            PILOT[Pilot]
+            CITADEL[Citadel]
+        end
         
-        ROOT --> INFRA[🏗️ nexus-infrastructure<br/>Namespace: infrastructure<br/>Path: environments/dev/infrastructure]
-        ROOT --> MICRO[🔧 nexus-microservices<br/>Namespace: microservices<br/>Path: environments/dev/microservices]
-        ROOT --> DATA[💾 nexus-data-layer<br/>Namespace: data<br/>Path: environments/dev/data]
-        ROOT --> OBS[📊 nexus-observability<br/>Namespace: observability<br/>Path: environments/dev/observability]
-        ROOT --> INGRESS[🌐 nexus-ingress<br/>Namespace: ingress-nginx<br/>Path: base/infrastructure/ingress-nginx]
+        subgraph "Data Plane"
+            subgraph "Microservices Namespace"
+                USER_POD[User Service + Envoy]
+                PRODUCT_POD[Product Service + Envoy]
+                ORDER_POD[Order Service + Envoy]
+                PAYMENT_POD[Payment Service + Envoy]
+            end
+            
+            subgraph "Infrastructure Namespace"
+                API_GW_POD[API Gateway + Envoy]
+                CONFIG_POD[Config Server + Envoy]
+            end
+        end
+        
+        subgraph "Ingress Gateway"
+            ISTIO_INGRESS[Istio Ingress Gateway]
+        end
     end
     
-    subgraph "Sync Policies"
-        AUTO[🔄 Auto-Sync Enabled<br/>• Prune: true<br/>• Self-Heal: true]
-        MANUAL[👋 Manual Sync<br/>• Data Layer<br/>• Production Only]
-    end
+    ISTIOD --> USER_POD
+    ISTIOD --> PRODUCT_POD
+    ISTIOD --> ORDER_POD
+    ISTIOD --> PAYMENT_POD
+    ISTIOD --> API_GW_POD
+    ISTIOD --> CONFIG_POD
     
-    subgraph "Deployment Features"
-        HEALTH[💊 Health Checks<br/>• Readiness Probes<br/>• Liveness Probes<br/>• Startup Probes]
-        ROLLBACK[↩️ Auto Rollback<br/>• Failed deployments<br/>• Health check failures]
-        SYNC_WAVES[🌊 Sync Waves<br/>• Infrastructure first<br/>• Dependencies managed]
-    end
-    
-    INFRA -.-> AUTO
-    MICRO -.-> AUTO
-    OBS -.-> AUTO
-    INGRESS -.-> AUTO
-    DATA -.-> MANUAL
-    
-    AUTO --> HEALTH
-    AUTO --> ROLLBACK
-    AUTO --> SYNC_WAVES
-
-    style ROOT fill:#e1f5fe,stroke:#01579b,stroke-width:3px
-    style AUTO fill:#e8f5e8,stroke:#388e3c,stroke-width:2px
-    style MANUAL fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+    ISTIO_INGRESS --> API_GW_POD
+    API_GW_POD --> USER_POD
+    API_GW_POD --> PRODUCT_POD
+    USER_POD --> ORDER_POD
+    ORDER_POD --> PAYMENT_POD
 ```
 
-### Application Sync Strategy
+---
 
-| Application | Sync Policy | Prune | Self-Heal | Namespace | Notes |
-|-------------|-------------|-------|-----------|-----------|--------|
-| **App of Apps** | Auto | ✅ | ✅ | argocd | Root application manager |
-| **Infrastructure** | Auto | ✅ | ✅ | infrastructure | Core services foundation |
-| **Microservices** | Auto | ✅ | ✅ | microservices | Business logic services |
-| **Ingress** | Auto | ✅ | ✅ | ingress-nginx | Traffic management |
-| **Observability** | Auto | ✅ | ✅ | observability | Monitoring & alerting |
-| **Data Layer** | Manual | ❌ | ❌ | data | Requires careful management |
+## ✨ Features
+
+### 🔧 Core Platform Features
+- **Microservices Architecture**: Domain-driven service decomposition
+- **Event-Driven Communication**: Asynchronous messaging with Apache Kafka
+- **Database per Service**: Polyglot persistence (MongoDB, PostgreSQL, Redis)
+- **API Gateway Pattern**: Centralized request routing and cross-cutting concerns
+- **Service Discovery**: Automatic service registration and discovery with Eureka
+
+### 🚀 DevOps & GitOps
+- **GitOps Deployment**: Declarative, version-controlled deployments
+- **Multi-Environment Support**: Separate configurations for dev/staging/prod
+- **Automated Rollbacks**: Instant rollback capabilities with ArgoCD
+- **Progressive Delivery**: Canary deployments and blue-green strategies
+
+### 🔒 Security & Compliance
+- **mTLS**: Mutual TLS for service-to-service communication
+- **RBAC**: Role-based access control
+- **Network Policies**: Kubernetes network segmentation
+- **Secret Management**: Encrypted secrets with Kubernetes
+
+### 📊 Observability & Monitoring
+- **Distributed Tracing**: Request flow tracking with Zipkin
+- **Centralized Logging**: ELK stack for log aggregation
+- **Metrics & Alerting**: Prometheus and Grafana
+- **Service Mesh Observability**: Kiali for traffic visualization
+
+### 🔄 Resilience & Scalability
+- **Circuit Breakers**: Fault tolerance with Resilience4j
+- **Load Balancing**: Intelligent traffic distribution
+- **Auto-scaling**: HPA and VPA for dynamic scaling
+- **Health Checks**: Comprehensive health monitoring
+
+---
+
+## 📋 Prerequisites
+
+### Required Tools
+```bash
+# Container & Kubernetes
+docker >= 20.10
+kubectl >= 1.24
+helm >= 3.8
+
+# GitOps
+argocd >= 2.6
+
+# Development (Optional)
+k3d >= 5.4  # For local development
+kustomize >= 4.5
+```
+
+### Kubernetes Cluster Requirements
+- **Kubernetes Version**: 1.24+
+- **Minimum Resources**: 8 CPU cores, 16GB RAM
+- **Storage Classes**: Default storage class configured
+- **LoadBalancer**: MetalLB, cloud provider LB, or NodePort for development
+
+---
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 1. Clone the Repository
+```bash
+git clone https://github.com/your-org/nexus-commerce-gitops.git
+cd nexus-commerce-gitops
+```
 
-![ArgoCD](https://img.shields.io/badge/ArgoCD-2.8+-EF7B4D?style=flat-square&logo=argo&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-1.28+-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
-![Kustomize](https://img.shields.io/badge/Kustomize-5.0+-6DB33F?style=flat-square&logo=kubernetes&logoColor=white)
-![kubectl](https://img.shields.io/badge/kubectl-latest-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
-
-- Kubernetes cluster (v1.28+)
-- ArgoCD installed and configured
-- kubectl configured for your cluster
-- Git repository access
-
-### 1. 🏗️ Install ArgoCD (if not already installed)
-
+### 2. Install ArgoCD
 ```bash
 # Create ArgoCD namespace
 kubectl create namespace argocd
@@ -274,506 +320,519 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/st
 # Wait for ArgoCD to be ready
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
 
-# Get ArgoCD admin password
+# Access ArgoCD UI (get password)
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 ```
 
-### 2. 🔧 Access ArgoCD UI
-
+### 3. Deploy the Platform
 ```bash
-# Port forward to access ArgoCD UI
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-
-# Open browser to https://localhost:8080
-# Username: admin
-# Password: (from previous step)
-```
-
-### 3. 🚀 Deploy App of Apps
-
-```bash
-# Apply the root App of Apps application
+# Deploy the App of Apps pattern
 kubectl apply -f argocd/applications/app-of-apps.yaml
 
-# Verify the application is created
-argocd app list
+# Monitor deployment status
+kubectl get applications -n argocd -w
 ```
 
-### 4. 📊 Monitor Deployment
+### 4. Access the Services
+
+#### Development Environment
+```bash
+# Port forward to access services locally
+kubectl port-forward svc/api-gateway 8099:8099 -n infrastructure
+kubectl port-forward svc/kibana 5601:5601 -n observability
+kubectl port-forward svc/kiali 20001:20001 -n observability
+```
+
+#### Service URLs (with ingress configured)
+- **API Gateway**: http://api.nexus-commerce.local
+- **Kibana**: http://kibana.nexus-commerce.local
+- **Kiali**: http://kiali.nexus-commerce.local
+- **Kafka UI**: http://kafka-ui.nexus-commerce.local
+- **ArgoCD**: http://argocd.nexus-commerce.local
+
+---
+
+## 📁 Project Structure
+
+```
+nexus-commerce-gitops/
+├── argocd/                           # ArgoCD Applications
+│   ├── applications/                 # Application definitions
+│   │   ├── app-of-apps.yaml         # Root application
+│   │   ├── data-layer.yaml          # Data services
+│   │   ├── infrastructure.yaml      # Infrastructure services
+│   │   ├── microservices.yaml       # Business microservices
+│   │   ├── observability.yaml       # Monitoring stack
+│   │   └── istio.yaml               # Service mesh
+│   └── bootstrap/                    # Bootstrap configurations
+│
+├── base/                            # Base Kubernetes manifests
+│   ├── data/                        # Data layer services
+│   │   ├── mongodb/                 # MongoDB clusters
+│   │   ├── postgresql/              # PostgreSQL databases
+│   │   ├── redis/                   # Redis cache
+│   │   ├── kafka/                   # Apache Kafka
+│   │   └── zookeeper/               # Zookeeper
+│   │
+│   ├── infrastructure/              # Infrastructure services
+│   │   ├── api-gateway/             # API Gateway
+│   │   ├── config-server/           # Configuration service
+│   │   ├── eureka-server/           # Service discovery
+│   │   ├── ingress-nginx/           # Ingress controller
+│   │   └── istio/                   # Service mesh
+│   │
+│   ├── microservices/               # Business microservices
+│   │   ├── user-service/            # User management
+│   │   ├── product-service/         # Product catalog
+│   │   ├── cart-service/            # Shopping cart
+│   │   ├── order-service/           # Order processing
+│   │   ├── payment-service/         # Payment processing
+│   │   ├── shipping-service/        # Shipping & logistics
+│   │   ├── loyalty-service/         # Loyalty program
+│   │   └── notification-service/    # Notifications
+│   │
+│   └── observability/               # Monitoring & observability
+│       ├── elk/                     # Elasticsearch, Logstash, Kibana
+│       └── kiali/                   # Service mesh observability
+│
+├── environments/                    # Environment-specific configurations
+│   ├── dev/                        # Development environment
+│   ├── staging/                     # Staging environment
+│   └── production/                  # Production environment
+│
+├── tools/                          # Additional tools
+│   ├── kafka-ui/                   # Kafka management UI
+│   └── zipkin-server/              # Distributed tracing
+│
+└── docs/                           # Documentation
+    ├── architecture/               # Architecture diagrams
+    ├── deployment/                 # Deployment guides
+    └── troubleshooting/            # Troubleshooting guides
+```
+
+---
+
+## 🔧 Services
+
+### 💼 Business Microservices
+
+| Service | Port | Database | Description |
+|---------|------|----------|-------------|
+| **User Service** | 8081 | MongoDB | User management, authentication, profiles |
+| **Product Service** | 8082 | PostgreSQL | Product catalog, inventory management |
+| **Cart Service** | 8082 | MongoDB + Redis | Shopping cart, session management |
+| **Order Service** | 8082 | PostgreSQL | Order processing, order history |
+| **Payment Service** | 8084 | PostgreSQL | Payment processing, billing |
+| **Shipping Service** | 8085 | PostgreSQL | Shipping, tracking, logistics |
+| **Loyalty Service** | 8084 | PostgreSQL | Loyalty programs, rewards |
+| **Notification Service** | 8086 | MongoDB | Email, SMS, push notifications |
+
+### 🏗️ Infrastructure Services
+
+| Service | Port | Description |
+|---------|------|-------------|
+| **API Gateway** | 8099 | Request routing, rate limiting, authentication |
+| **Config Server** | 8888 | Centralized configuration management |
+| **Eureka Server** | 8761 | Service discovery and registration |
+| **Zipkin Server** | 9411 | Distributed tracing |
+
+---
+
+## 🗄️ Infrastructure
+
+### Data Layer
+
+```mermaid
+graph TB
+    subgraph "Data Persistence"
+        subgraph "MongoDB Clusters"
+            USER_MONGO[(User MongoDB)]
+            CART_MONGO[(Cart MongoDB)]
+            NOTIFICATION_MONGO[(Notification MongoDB)]
+        end
+        
+        subgraph "PostgreSQL Databases"
+            PRODUCT_PG[(Product PostgreSQL)]
+            ORDER_PG[(Order PostgreSQL)]
+            PAYMENT_PG[(Payment PostgreSQL)]
+            SHIPPING_PG[(Shipping PostgreSQL)]
+            LOYALTY_PG[(Loyalty PostgreSQL)]
+        end
+        
+        subgraph "Caching Layer"
+            REDIS[(Redis Cluster)]
+        end
+        
+        subgraph "Message Broker"
+            KAFKA[Apache Kafka]
+            ZOOKEEPER[Zookeeper]
+        end
+    end
+    
+    subgraph "Services"
+        USER_SVC[User Service]
+        CART_SVC[Cart Service]
+        PRODUCT_SVC[Product Service]
+        ORDER_SVC[Order Service]
+        PAYMENT_SVC[Payment Service]
+        SHIPPING_SVC[Shipping Service]
+        LOYALTY_SVC[Loyalty Service]
+        NOTIFICATION_SVC[Notification Service]
+    end
+    
+    USER_SVC --> USER_MONGO
+    CART_SVC --> CART_MONGO
+    CART_SVC --> REDIS
+    PRODUCT_SVC --> PRODUCT_PG
+    ORDER_SVC --> ORDER_PG
+    PAYMENT_SVC --> PAYMENT_PG
+    SHIPPING_SVC --> SHIPPING_PG
+    LOYALTY_SVC --> LOYALTY_PG
+    NOTIFICATION_SVC --> NOTIFICATION_MONGO
+    
+    ORDER_SVC --> KAFKA
+    PAYMENT_SVC --> KAFKA
+    NOTIFICATION_SVC --> KAFKA
+    KAFKA --> ZOOKEEPER
+```
+
+### Service Mesh Configuration
+
+| Component | Version | Purpose |
+|-----------|---------|---------|
+| **Istio** | 1.20.0 | Service mesh, traffic management |
+| **Envoy** | Bundled | Sidecar proxy, load balancing |
+| **Kiali** | v1.76 | Service mesh observability |
+
+---
+
+## 📊 Monitoring & Observability
+
+### Observability Stack
+
+```mermaid
+graph TB
+    subgraph "Applications"
+        APP1[User Service]
+        APP2[Product Service]
+        APP3[Order Service]
+    end
+    
+    subgraph "Data Collection"
+        FILEBEAT[Filebeat]
+        PROMETHEUS[Prometheus]
+        JAEGER[Zipkin]
+    end
+    
+    subgraph "Data Processing"
+        LOGSTASH[Logstash]
+        ALERTMANAGER[Alertmanager]
+    end
+    
+    subgraph "Storage"
+        ELASTICSEARCH[(Elasticsearch)]
+        PROMETHEUS_DB[(Prometheus DB)]
+        ZIPKIN_DB[(Zipkin Storage)]
+    end
+    
+    subgraph "Visualization"
+        KIBANA[Kibana]
+        GRAFANA[Grafana]
+        KIALI[Kiali]
+    end
+    
+    APP1 --> FILEBEAT
+    APP2 --> FILEBEAT
+    APP3 --> FILEBEAT
+    
+    APP1 --> PROMETHEUS
+    APP2 --> PROMETHEUS
+    APP3 --> PROMETHEUS
+    
+    APP1 --> JAEGER
+    APP2 --> JAEGER
+    APP3 --> JAEGER
+    
+    FILEBEAT --> LOGSTASH
+    LOGSTASH --> ELASTICSEARCH
+    ELASTICSEARCH --> KIBANA
+    
+    PROMETHEUS --> PROMETHEUS_DB
+    PROMETHEUS --> ALERTMANAGER
+    PROMETHEUS_DB --> GRAFANA
+    
+    JAEGER --> ZIPKIN_DB
+    ZIPKIN_DB --> GRAFANA
+    
+    PROMETHEUS --> KIALI
+```
+
+### Monitoring Endpoints
+
+| Service | Metrics | Logs | Traces |
+|---------|---------|------|--------|
+| **Kibana** | http://kibana.nexus-commerce.local | ✅ | ❌ |
+| **Grafana** | http://grafana.nexus-commerce.local | ✅ | ✅ |
+| **Kiali** | http://kiali.nexus-commerce.local | ✅ | ✅ |
+| **Zipkin** | http://zipkin.nexus-commerce.local | ❌ | ✅ |
+
+---
+
+## 🔧 Configuration
+
+### Environment Configuration
+
+Each environment has its own overlay configuration:
+
+#### Development Environment
+```yaml
+# environments/dev/kustomization.yaml
+resources:
+  - ../../base
+  
+patchesStrategicMerge:
+  - replica-patch.yaml
+  - resource-patch.yaml
+  
+configMapGenerator:
+  - name: env-config
+    literals:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+```
+
+#### Production Environment
+```yaml
+# environments/production/kustomization.yaml
+resources:
+  - ../../base
+  
+patchesStrategicMerge:
+  - security-patch.yaml
+  - scaling-patch.yaml
+  
+configMapGenerator:
+  - name: env-config
+    literals:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+```
+
+### ArgoCD Application Sync Waves
+
+| Wave | Components | Purpose |
+|------|------------|---------|
+| **0** | Istio Base, Namespaces | Foundation |
+| **1** | Istio Control Plane | Service Mesh |
+| **2** | Data Layer | Databases, Message Brokers |
+| **3** | Infrastructure | Config, Discovery, Gateway |
+| **4** | Microservices | Business Logic |
+| **5** | Observability | Monitoring Stack |
+
+---
+
+## 🛠️ Development
+
+### Local Development Setup
+
+1. **Create Local Kubernetes Cluster**
+```bash
+# Using k3d
+k3d cluster create nexus-commerce \
+  --port "80:80@loadbalancer" \
+  --port "443:443@loadbalancer" \
+  --k3s-arg "--disable=traefik@server:*"
+
+# Using kind
+kind create cluster --config=kind-config.yaml
+```
+
+2. **Install Development Tools**
+```bash
+# Install ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Install Istio
+istioctl install --set values.defaultRevision=default -y
+kubectl label namespace default istio-injection=enabled
+```
+
+3. **Deploy Development Environment**
+```bash
+# Deploy via ArgoCD
+kubectl apply -f argocd/applications/app-of-apps.yaml
+
+# Or deploy directly with Kustomize
+kubectl apply -k environments/dev/
+```
+
+### Testing
 
 ```bash
-# Watch ArgoCD applications
-argocd app list
+# Port forward services for testing
+kubectl port-forward svc/api-gateway 8099:8099 -n infrastructure
 
-# Check application health
-argocd app get nexus-commerce-app-of-apps
-
-# View sync status
-argocd app sync nexus-commerce-app-of-apps
+# Test API endpoints
+curl http://localhost:8099/api/users/health
+curl http://localhost:8099/api/products/health
+curl http://localhost:8099/api/orders/health
 ```
 
-## 🏗️ Deployment Layers
-
-### Infrastructure Layer Deployment Flow
-
-```mermaid
-sequenceDiagram
-    participant Dev as 👨‍💻 Developer
-    participant Git as 📁 Git Repository
-    participant ArgoCD as 🔄 ArgoCD
-    participant K8s as ☸️ Kubernetes
-    
-    Dev->>Git: 1. Push infrastructure changes
-    Note right of Git: environments/dev/infrastructure/
-    
-    Git->>ArgoCD: 2. Webhook triggers sync
-    ArgoCD->>ArgoCD: 3. Detect configuration drift
-    
-    ArgoCD->>K8s: 4. Apply namespace
-    Note right of K8s: Create 'infrastructure' namespace
-    
-    ArgoCD->>K8s: 5. Deploy Config Server
-    Note right of K8s: External configuration management
-    
-    ArgoCD->>K8s: 6. Deploy Eureka Server
-    Note right of K8s: Service discovery registry
-    
-    ArgoCD->>K8s: 7. Deploy API Gateway
-    Note right of K8s: Traffic routing & security
-    
-    K8s->>ArgoCD: 8. Health check feedback
-    ArgoCD->>Dev: 9. Deployment status
-    
-    Note over Dev,K8s: 🎯 Infrastructure Ready for Microservices
-```
-
-### Service Dependencies & Startup Order
-
-```mermaid
-graph TB
-    subgraph "Startup Order & Dependencies"
-        NAMESPACE[📁 Namespaces<br/>Wave: 0]
-        
-        CONFIG[⚙️ Config Server<br/>Wave: 1<br/>First to start]
-        EUREKA[🗺️ Eureka Server<br/>Wave: 1<br/>Service Discovery]
-        
-        REDIS[🔴 Redis<br/>Wave: 2<br/>Caching Layer]
-        POSTGRES[🐘 PostgreSQL<br/>Wave: 2<br/>Database]
-        KAFKA[📡 Kafka<br/>Wave: 2<br/>Message Bus]
-        
-        GATEWAY[🌐 API Gateway<br/>Wave: 3<br/>Routing Layer]
-        
-        USER[👤 User Service<br/>Wave: 4]
-        PRODUCT[📦 Product Service<br/>Wave: 4]
-        
-        INGRESS[🌐 Ingress<br/>Wave: 5<br/>External Access]
-        
-        MONITOR[📊 Monitoring<br/>Wave: 6<br/>Observability]
-    end
-    
-    NAMESPACE --> CONFIG
-    NAMESPACE --> EUREKA
-    
-    CONFIG --> REDIS
-    CONFIG --> POSTGRES
-    CONFIG --> KAFKA
-    EUREKA --> REDIS
-    EUREKA --> POSTGRES
-    EUREKA --> KAFKA
-    
-    REDIS --> GATEWAY
-    POSTGRES --> GATEWAY
-    KAFKA --> GATEWAY
-    CONFIG --> GATEWAY
-    EUREKA --> GATEWAY
-    
-    GATEWAY --> USER
-    GATEWAY --> PRODUCT
-    POSTGRES --> USER
-    POSTGRES --> PRODUCT
-    REDIS --> USER
-    REDIS --> PRODUCT
-    KAFKA --> USER
-    KAFKA --> PRODUCT
-    
-    USER --> INGRESS
-    PRODUCT --> INGRESS
-    GATEWAY --> INGRESS
-    
-    INGRESS --> MONITOR
-
-    style NAMESPACE fill:#e3f2fd,stroke:#1976d2
-    style CONFIG fill:#fff3e0,stroke:#f57c00
-    style EUREKA fill:#f3e5f5,stroke:#7b1fa2
-    style GATEWAY fill:#e8f5e8,stroke:#388e3c
-    style INGRESS fill:#fce4ec,stroke:#880e4f
-```
-
-## 🌍 Environment Management
-
-### Environment Configuration Matrix
-
-| Component | Development | Staging | Production |
-|-----------|------------|---------|------------|
-| **Replicas** | 1 | 2 | 3+ |
-| **Resources** | Minimal | Medium | High |
-| **Logging** | DEBUG | INFO | ERROR |
-| **Service Type** | NodePort | LoadBalancer | LoadBalancer |
-| **Ingress** | Local domains | Staging domains | Production domains |
-| **Database** | Single instance | HA pair | HA cluster |
-| **Auto-scaling** | Disabled | Basic | Advanced |
-| **Monitoring** | Basic | Full | Enterprise |
-
-### Environment-Specific Kustomization
-
-```mermaid
-graph LR
-    subgraph "Base Configuration"
-        BASE_DEPLOY[📦 Deployment<br/>2 replicas<br/>Standard resources]
-        BASE_SVC[🔧 Service<br/>ClusterIP<br/>Standard ports]
-        BASE_CM[⚙️ ConfigMap<br/>Default settings<br/>INFO logging]
-    end
-    
-    subgraph "Development Overlay"
-        DEV_PATCH[🛠️ Patches<br/>• 1 replica<br/>• DEBUG logging<br/>• NodePort service<br/>• Reduced resources]
-        DEV_CM[⚙️ Dev ConfigMap<br/>• Debug settings<br/>• Test endpoints<br/>• Mock services]
-    end
-    
-    subgraph "Production Overlay"
-        PROD_PATCH[🚀 Patches<br/>• 5 replicas<br/>• ERROR logging<br/>• LoadBalancer<br/>• High resources]
-        PROD_CM[⚙️ Prod ConfigMap<br/>• Security hardened<br/>• Performance tuned<br/>• Monitoring enabled]
-    end
-    
-    BASE_DEPLOY --> DEV_PATCH
-    BASE_SVC --> DEV_PATCH
-    BASE_CM --> DEV_CM
-    
-    BASE_DEPLOY --> PROD_PATCH
-    BASE_SVC --> PROD_PATCH
-    BASE_CM --> PROD_CM
-
-    style BASE_DEPLOY fill:#e3f2fd,stroke:#1976d2
-    style DEV_PATCH fill:#f3e5f5,stroke:#7b1fa2
-    style PROD_PATCH fill:#e8f5e8,stroke:#388e3c
-```
-
-## 📊 Monitoring & Health Checks
-
-### ArgoCD Application Health Dashboard
-
-```mermaid
-graph TB
-    subgraph "ArgoCD Health Monitoring"
-        ARGOCD_UI[🖥️ ArgoCD UI<br/>https://argocd.yourdomain.com]
-        
-        subgraph "Application Status"
-            HEALTHY[💚 Healthy<br/>All resources synced<br/>All pods running]
-            PROGRESSING[🟡 Progressing<br/>Deployment in progress<br/>Rolling update]
-            DEGRADED[🔴 Degraded<br/>Some pods failing<br/>Resource issues]
-            SUSPENDED[⏸️ Suspended<br/>Manual intervention<br/>Sync disabled]
-        end
-        
-        subgraph "Sync Status"
-            SYNCED[✅ Synced<br/>Git = Cluster<br/>No drift detected]
-            OUT_OF_SYNC[❌ OutOfSync<br/>Configuration drift<br/>Manual changes detected]
-            UNKNOWN[❓ Unknown<br/>Sync status unclear<br/>Investigation needed]
-        end
-    end
-    
-    subgraph "Monitoring Integration"
-        PROMETHEUS[📈 Prometheus<br/>ArgoCD metrics<br/>Application metrics]
-        GRAFANA[📊 Grafana<br/>ArgoCD dashboard<br/>Application dashboard]
-        ALERTS[🚨 Alertmanager<br/>Sync failures<br/>Health degradation]
-    end
-    
-    ARGOCD_UI --> HEALTHY
-    ARGOCD_UI --> PROGRESSING
-    ARGOCD_UI --> DEGRADED
-    ARGOCD_UI --> SUSPENDED
-    
-    ARGOCD_UI --> SYNCED
-    ARGOCD_UI --> OUT_OF_SYNC
-    ARGOCD_UI --> UNKNOWN
-    
-    ARGOCD_UI --> PROMETHEUS
-    PROMETHEUS --> GRAFANA
-    PROMETHEUS --> ALERTS
-
-    style HEALTHY fill:#c8e6c9,stroke:#4caf50
-    style DEGRADED fill:#ffcdd2,stroke:#f44336
-    style SYNCED fill:#c8e6c9,stroke:#4caf50
-    style OUT_OF_SYNC fill:#ffcdd2,stroke:#f44336
-```
-
-### Health Check Endpoints
-
-| Service | Health Endpoint | Port | ArgoCD Health Check |
-|---------|----------------|------|-------------------|
-| **Config Server** | `/actuator/health` | 8888 | ✅ Spring Boot Actuator |
-| **Eureka Server** | `/actuator/health` | 8761 | ✅ Spring Boot Actuator |
-| **API Gateway** | `/actuator/health` | 8099 | ✅ Spring Boot Actuator |
-| **User Service** | `/actuator/health` | 8080 | ✅ Spring Boot Actuator |
-| **Product Service** | `/actuator/health` | 8081 | ✅ Spring Boot Actuator |
-| **ArgoCD** | `/healthz` | 443 | ✅ ArgoCD Native |
-
-## 🔧 Troubleshooting
-
-### Common Issues & Solutions
-
-#### 🚨 Application Stuck in Progressing State
-
-```mermaid
-flowchart TD
-    STUCK[🔄 Application Stuck<br/>in Progressing State]
-    
-    STUCK --> CHECK_PODS{📦 Check Pod Status}
-    CHECK_PODS -->|Pods Failing| POD_LOGS[📋 Check Pod Logs<br/>kubectl logs pod-name]
-    CHECK_PODS -->|Pods Pending| RESOURCES[🔍 Check Resources<br/>kubectl describe pod]
-    CHECK_PODS -->|Pods Running| HEALTH_CHECK[💊 Check Health Endpoints]
-    
-    POD_LOGS --> FIX_CONFIG[🔧 Fix Configuration<br/>Update manifests]
-    RESOURCES --> ADD_RESOURCES[➕ Add Resources<br/>Increase limits/requests]
-    HEALTH_CHECK --> FIX_HEALTH[🔧 Fix Health Checks<br/>Adjust probe settings]
-    
-    FIX_CONFIG --> COMMIT[📝 Commit & Push]
-    ADD_RESOURCES --> COMMIT
-    FIX_HEALTH --> COMMIT
-    
-    COMMIT --> AUTO_SYNC[🔄 ArgoCD Auto-Sync]
-    AUTO_SYNC --> RESOLVED[✅ Issue Resolved]
-
-    style STUCK fill:#ffcdd2,stroke:#f44336
-    style RESOLVED fill:#c8e6c9,stroke:#4caf50
-```
-
-#### 🔍 Debugging Commands
+### Debugging
 
 ```bash
 # Check ArgoCD application status
-argocd app get <app-name>
+kubectl get applications -n argocd
 
-# View application logs
-argocd app logs <app-name>
-
-# Force refresh application
-argocd app sync <app-name> --force
-
-# Check Kubernetes events
-kubectl get events --sort-by='.lastTimestamp' -n <namespace>
-
-# Describe problematic resources
-kubectl describe deployment <deployment-name> -n <namespace>
+# View application details
+argocd app get nexus-commerce-app-of-apps
 
 # Check pod logs
-kubectl logs -f deployment/<deployment-name> -n <namespace>
+kubectl logs -f deployment/user-service -n microservices
 
-# Restart deployment
-kubectl rollout restart deployment/<deployment-name> -n <namespace>
+# Access service mesh dashboard
+kubectl port-forward svc/kiali 20001:20001 -n observability
 ```
 
-### Sync Failure Troubleshooting
+---
 
-| Error Type | Symptoms | Solution |
-|------------|----------|----------|
-| **Resource Conflict** | `resource already exists` | Enable prune or delete conflicting resources |
-| **Permission Denied** | `forbidden: access denied` | Check RBAC permissions for ArgoCD |
-| **Invalid Manifest** | `error validating data` | Validate YAML syntax and Kubernetes API |
-| **Hook Failure** | `hook job failed` | Check pre/post sync hooks and fix scripts |
-| **Health Check Timeout** | `health check timeout` | Adjust health check timeouts or fix app health |
+## 🚀 Production Deployment
 
-## 🎯 GitOps Best Practices
+### Pre-deployment Checklist
 
-### 1. 📝 Commit Message Convention
+- [ ] **Infrastructure Ready**: Kubernetes cluster with sufficient resources
+- [ ] **Ingress Configured**: Load balancer or ingress controller setup
+- [ ] **TLS Certificates**: SSL certificates for HTTPS
+- [ ] **Secrets Management**: All secrets properly configured
+- [ ] **Monitoring**: Observability stack functional
+- [ ] **Backup Strategy**: Database backup procedures in place
 
-```
-<type>(<scope>): <description>
+### Deployment Steps
 
-Types:
-- feat: New feature or application
-- fix: Bug fix or configuration correction
-- refactor: Code/config restructuring
-- docs: Documentation updates
-- chore: Maintenance tasks
-
-Examples:
-feat(microservices): add cart service deployment
-fix(infrastructure): correct eureka server health check
-refactor(kustomize): reorganize base configurations
+1. **Prepare Production Environment**
+```bash
+# Apply production-specific configurations
+kubectl apply -k environments/production/
 ```
 
-### 2. 🔄 Branching Strategy
-
-```mermaid
-graph LR
-    subgraph "Git Workflow"
-        MAIN[🌟 main<br/>Production ready<br/>Auto-deploy to prod]
-        DEVELOP[🔧 develop<br/>Integration branch<br/>Auto-deploy to staging]
-        FEATURE[🌿 feature/*<br/>Feature development<br/>Deploy to dev]
-    end
-    
-    subgraph "Environments"
-        DEV[🛠️ Development<br/>Feature testing]
-        STAGING[🔧 Staging<br/>Integration testing]
-        PROD[🚀 Production<br/>Live environment]
-    end
-    
-    FEATURE --> DEVELOP
-    DEVELOP --> MAIN
-    
-    FEATURE -.-> DEV
-    DEVELOP -.-> STAGING
-    MAIN -.-> PROD
-
-    style MAIN fill:#e8f5e8,stroke:#388e3c
-    style DEVELOP fill:#fff3e0,stroke:#f57c00
-    style FEATURE fill:#f3e5f5,stroke:#7b1fa2
+2. **Deploy via ArgoCD**
+```bash
+# Create production ArgoCD application
+kubectl apply -f argocd/applications/production/app-of-apps.yaml
 ```
 
-### 3. 🔒 Security Considerations
+3. **Verify Deployment**
+```bash
+# Check all applications are synced
+argocd app list
 
-- **🔐 Secrets Management**: Use Kubernetes secrets or external secret managers
-- **🔑 RBAC**: Implement least-privilege access controls
-- **📝 Audit Logging**: Enable comprehensive audit trails
-- **🔍 Vulnerability Scanning**: Regular container and manifest scanning
-- **🚫 No Sensitive Data**: Never commit sensitive information
-
-## 🚀 Advanced Features
-
-### Progressive Delivery with ArgoCD
-
-```mermaid
-graph TB
-    subgraph "Canary Deployment Strategy"
-        NEW_VERSION[🆕 New Version<br/>Git Commit]
-        NEW_VERSION --> CANARY[🐦 Canary<br/>5% traffic]
-        CANARY --> ANALYSIS[📊 Analysis<br/>Metrics & Health]
-        ANALYSIS -->|Success| PROMOTE[⬆️ Promote<br/>100% traffic]
-        ANALYSIS -->|Failure| ROLLBACK[↩️ Rollback<br/>Previous version]
-        PROMOTE --> STABLE[✅ Stable<br/>Deployment complete]
-    end
-    
-    subgraph "Blue-Green Deployment"
-        BLUE[🔵 Blue<br/>Current production]
-        GREEN[🟢 Green<br/>New version]
-        SWITCH[🔄 Traffic Switch<br/>Instant cutover]
-        BLUE --> SWITCH
-        GREEN --> SWITCH
-        SWITCH --> VALIDATION[✅ Validation]
-    end
-
-    style CANARY fill:#fff3e0,stroke:#f57c00
-    style PROMOTE fill:#c8e6c9,stroke:#4caf50
-    style ROLLBACK fill:#ffcdd2,stroke:#f44336
-    style STABLE fill:#e1f5fe,stroke:#01579b
+# Verify all pods are running
+kubectl get pods --all-namespaces
 ```
 
-### Multi-Cluster Management
+4. **Run Health Checks**
+```bash
+# Check service health
+curl https://api.nexus-commerce.com/health
 
-```mermaid
-graph TB
-    subgraph "GitOps Control Plane"
-        ARGOCD_MGMT[🎯 ArgoCD Management<br/>Central control cluster]
-    end
-    
-    subgraph "Target Clusters"
-        DEV_CLUSTER[🛠️ Development Cluster<br/>Region: us-west-1]
-        STAGING_CLUSTER[🔧 Staging Cluster<br/>Region: us-east-1]
-        PROD_CLUSTER[🚀 Production Cluster<br/>Region: us-east-1, us-west-2]
-    end
-    
-    subgraph "Git Repository"
-        GITOPS_REPO[📁 GitOps Repository<br/>Single source of truth]
-    end
-    
-    GITOPS_REPO --> ARGOCD_MGMT
-    ARGOCD_MGMT --> DEV_CLUSTER
-    ARGOCD_MGMT --> STAGING_CLUSTER
-    ARGOCD_MGMT --> PROD_CLUSTER
-    
-    style ARGOCD_MGMT fill:#e1f5fe,stroke:#01579b
-    style GITOPS_REPO fill:#e8f5e8,stroke:#388e3c
+# Verify monitoring
+curl https://grafana.nexus-commerce.com/api/health
 ```
+
+### Production Considerations
+
+#### Security
+- Enable Pod Security Standards
+- Configure Network Policies
+- Implement proper RBAC
+- Enable audit logging
+- Use private container registries
+
+#### Monitoring & Alerting
+- Configure alerts for critical metrics
+- Set up log retention policies
+- Monitor resource utilization
+- Track application performance
+
+#### Backup & Disaster Recovery
+- Automated database backups
+- Cross-region data replication
+- Disaster recovery procedures
+- Regular backup testing
+
+---
 
 ## 🤝 Contributing
 
-### Contributing Workflow
+### Development Workflow
 
-1. **🍴 Fork** the repository
-2. **🌿 Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **📝 Commit** your changes (`git commit -m 'feat(scope): add amazing feature'`)
-4. **🚀 Push** to the branch (`git push origin feature/amazing-feature`)
-5. **📝 Open** a Pull Request
-
-### Pull Request Guidelines
-
-- **✅ Validate** all Kubernetes manifests
-- **🧪 Test** in development environment first
-- **📖 Update** documentation if needed
-- **🔍 Include** ArgoCD sync status screenshots
-- **📋 Follow** commit message conventions
-
-### Environment Promotion Process
-
-```mermaid
-sequenceDiagram
-    participant Dev as 👨‍💻 Developer
-    participant PR as 📝 Pull Request
-    participant CI as 🔄 CI/CD Pipeline
-    participant DevEnv as 🛠️ Dev Environment
-    participant StagingEnv as 🔧 Staging Environment
-    participant ProdEnv as 🚀 Production Environment
-    
-    Dev->>PR: 1. Create PR with changes
-    PR->>CI: 2. Trigger validation pipeline
-    CI->>CI: 3. Validate manifests
-    CI->>CI: 4. Run security scans
-    CI->>DevEnv: 5. Deploy to dev environment
-    DevEnv->>Dev: 6. Manual testing & validation
-    Dev->>PR: 7. Approve and merge PR
-    PR->>StagingEnv: 8. Auto-deploy to staging
-    StagingEnv->>Dev: 9. Integration testing
-    Dev->>ProdEnv: 10. Manual promotion to production
-    ProdEnv->>Dev: 11. Production validation
+1. **Fork and Clone**
+2. **Create Feature Branch**
+```bash
+git checkout -b feature/new-service
 ```
 
-## 📚 Additional Resources
+3. **Make Changes**
+- Update Kubernetes manifests
+- Test in development environment
+- Update documentation
 
-### 🔗 Useful Links
+4. **Submit Pull Request**
+- Ensure all tests pass
+- Update relevant documentation
+- Follow commit message conventions
 
-- **📖 ArgoCD Documentation**: [https://argo-cd.readthedocs.io/](https://argo-cd.readthedocs.io/)
-- **⚙️ Kustomize Documentation**: [https://kustomize.io/](https://kustomize.io/)
-- **☸️ Kubernetes Documentation**: [https://kubernetes.io/docs/](https://kubernetes.io/docs/)
-- **🔧 GitOps Best Practices**: [https://opengitops.dev/](https://opengitops.dev/)
+### Code Standards
 
-### 📞 Support & Community
+- **Kubernetes Manifests**: Follow Kubernetes best practices
+- **Documentation**: Update README and inline comments
+- **Testing**: Include integration tests for new services
+- **Security**: Follow security guidelines
 
-- **🐛 Issues**: [GitHub Issues](https://github.com/ZakariaRek/gitops-repo_ArgoCD/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/ZakariaRek/gitops-repo_ArgoCD/discussions)
-- **📧 Email**: support@nexuscommerce.io
-- **💬 Slack**: [Nexus Commerce DevOps](https://nexuscommerce.slack.com)
+### Testing Guidelines
 
-### 🏷️ Versioning & Releases
+```bash
+# Lint Kubernetes manifests
+kubectl apply --dry-run=client -k environments/dev/
 
-We use [Semantic Versioning](https://semver.org/) for our releases:
+# Validate with kubeval
+kubeval base/**/*.yaml
 
-- **Major**: Breaking changes requiring manual intervention
-- **Minor**: New features, backward compatible
-- **Patch**: Bug fixes and security updates
+# Security scanning
+kube-score score base/**/*.yaml
+```
 
-## 📜 License
+---
+
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
+## 🆘 Support
+
+### Documentation
+- [Architecture Guide](docs/architecture/)
+- [Deployment Guide](docs/deployment/)
+- [Troubleshooting](docs/troubleshooting/)
+
+### Community
+- **Issues**: [GitHub Issues](https://github.com/your-org/nexus-commerce-gitops/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/your-org/nexus-commerce-gitops/discussions)
+- **Wiki**: [Project Wiki](https://github.com/your-org/nexus-commerce-gitops/wiki)
+
+### Contact
+- **Email**: devops@nexuscommerce.com
+- **Slack**: [#nexus-commerce-dev](https://nexuscommerce.slack.com)
+
+---
+
 <div align="center">
 
-**🌟 Star this repository if it helped you! 🌟**
+**⭐ If you find this project helpful, please give it a star! ⭐**
 
-*"GitOps: Where Git becomes the single source of truth, and deployments become as simple as a git push."*
-
-![Made with ❤️](https://img.shields.io/badge/Made%20with-❤️-red.svg)
-![GitOps](https://img.shields.io/badge/GitOps-100000?style=flat&logo=git&logoColor=white)
-![ArgoCD](https://img.shields.io/badge/ArgoCD-EF7B4D?style=flat&logo=argo&logoColor=white)
+Made with ❤️ by the NexusCommerce Team
 
 </div>
