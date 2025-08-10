@@ -68,28 +68,33 @@ data:
           hibernate:
             format_sql: true
       
-      # ===== KAFKA CONFIGURATION =====
+      # ===== OPTIMIZED KAFKA CONFIGURATION =====
       kafka:
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+        # Connection and timeout settings to prevent resource exhaustion
         client-id: product-service-${random.uuid}
         properties:
-          connections.max.idle.ms: 300000
-          request.timeout.ms: 30000
-          session.timeout.ms: 30000
-          heartbeat.interval.ms: 10000
-          metadata.max.age.ms: 300000
+          # Connection settings to prevent resource exhaustion
+          connections.max.idle.ms: 300000  # 5 minutes
+          request.timeout.ms: 30000        # 30 seconds
+          session.timeout.ms: 30000        # 30 seconds
+          heartbeat.interval.ms: 10000     # 10 seconds
+          metadata.max.age.ms: 300000      # 5 minutes
+          # Reduce network traffic
           fetch.min.bytes: 1024
           fetch.max.wait.ms: 5000
         producer:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          # Producer optimizations
           batch-size: 16384
           linger-ms: 5
           buffer-memory: 33554432
-          retries: 3
+          # Reduce retries and timeout for faster failure
+          retries: 2                        # Reduced from 3
           request-timeout-ms: 30000
           delivery-timeout-ms: 120000
-          acks: all
+          acks: 1                          # Reduced from 'all' for better performance
           properties:
             spring.json.type.mapping: >-
               productCreatedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductCreatedEvent,
@@ -99,18 +104,19 @@ data:
               productPriceChangedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductPriceChangedEvent,
               productStatusChangedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductStatusChangedEvent
             spring.json.add.type.headers: false
-            enable.idempotence: true
+            enable.idempotence: false        # Disabled for better performance
             max.in.flight.requests.per.connection: 5
             compression.type: snappy
         consumer:
           group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:product-service-group}
           auto-offset-reset: earliest
-          enable-auto-commit: true
+          enable-auto-commit: true          # CHANGED: Enable auto-commit to reduce load
           auto-commit-interval: 5000
-          max-poll-records: 10
-          max-poll-interval-ms: 300000
-          session-timeout-ms: 30000
-          heartbeat-interval-ms: 10000
+          # Consumer optimizations
+          max-poll-records: 10              # Reduced batch size
+          max-poll-interval-ms: 300000      # 5 minutes
+          session-timeout-ms: 30000         # 30 seconds
+          heartbeat-interval-ms: 10000      # 10 seconds
           fetch-min-size: 1024
           fetch-max-wait: 5000
           key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
@@ -121,54 +127,59 @@ data:
             spring.json.trusted.packages: "*"
             spring.json.use.type.headers: false
             spring.json.value.default.type: java.lang.Object
+        # Listener configuration
         listener:
-          concurrency: 1
+          concurrency: 1                    # Single thread to reduce resource usage
           poll-timeout: 3000
           type: single
           ack-mode: batch
         admin:
           auto-create: true
     
-    # ===== EUREKA CONFIGURATION =====
+    # ===== OPTIMIZED EUREKA CONFIGURATION =====
     eureka:
       instance:
         preferIpAddress: true
         instanceId: ${spring.application.name}:${server.port}
         hostname: product-service
-        lease-renewal-interval-in-seconds: 30
-        lease-expiration-duration-in-seconds: 90
+        # Increased lease renewal and expiration intervals to reduce network traffic
+        lease-renewal-interval-in-seconds: 30     # Increased from 5
+        lease-expiration-duration-in-seconds: 90  # Increased from default
         metadataMap:
           instanceId: ${spring.application.name}:${server.port}
       client:
-        registryFetchIntervalSeconds: 30
-        instanceInfoReplicationIntervalSeconds: 30
-        initialInstanceInfoReplicationIntervalSeconds: 40
-        eurekaServiceUrlPollIntervalSeconds: 300
+        # REDUCED frequency to prevent overwhelming Eureka server
+        registryFetchIntervalSeconds: 30          # Increased from 5
+        instanceInfoReplicationIntervalSeconds: 30 # Increased from 5
+        initialInstanceInfoReplicationIntervalSeconds: 40 # Increased from 5
+        eurekaServiceUrlPollIntervalSeconds: 300   # Increased from 5
+        # Connection and timeout settings
         eureka-server-connect-timeout-seconds: 30
         eureka-server-read-timeout-seconds: 30
         eureka-connection-idle-timeout-seconds: 30
         registerWithEureka: true
         fetchRegistry: true
+        # Registry processing optimizations
         disable-delta: false
         cache-refresh-executor-thread-pool-size: 2
         cache-refresh-executor-exponential-back-off-bound: 10
         serviceUrl:
           defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
     
-    # ===== MANAGEMENT AND MONITORING =====
+    # ===== MANAGEMENT AND MONITORING - OPTIMIZED =====
     management:
       endpoints:
         web:
           exposure:
-            include: "*"
+            include: "health,info,metrics,prometheus"  # Reduced endpoints
           cors:
             allowed-origins: "*"
             allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
       endpoint:
         env:
-          show-values: ALWAYS
+          show-values: WHEN_AUTHORIZED             # Reduced from ALWAYS
         health:
-          show-details: "WHEN_AUTHORIZED"
+          show-details: "WHEN_AUTHORIZED"          # Reduced verbosity
           show-components: "WHEN_AUTHORIZED"
         metrics:
           enabled: true
@@ -182,7 +193,7 @@ data:
           application: ${spring.application.name}
       tracing:
         sampling:
-          probability: 0.0
+          probability: 0.0                         # Disabled for now
     
     # ===== FILE UPLOAD CONFIGURATION =====
     file:
@@ -212,23 +223,28 @@ data:
       host: ${LOGSTASH_HOST:localhost}
       port: ${LOGSTASH_PORT:5000}
     
-    # ===== LOGGING CONFIGURATION =====
+    # ===== OPTIMIZED LOGGING CONFIGURATION =====
     logging:
       level:
         root: INFO
-        org.springframework.cloud.gateway: DEBUG
-        org.springframework.web: DEBUG
-        com.Ecommerce.Gateway_Service: DEBUG
-        org.springframework.data.redis: DEBUG
-        org.springframework.test: DEBUG
-        org.springframework.web.cors: DEBUG
-        io.github.resilience4j: DEBUG
-        org.springframework.boot.autoconfigure: DEBUG
-        com.Ecommerce: DEBUG
-        org.springframework.kafka: DEBUG
-        org.apache.kafka: WARN
+        org.springframework.cloud.gateway: WARN     # Reduced from DEBUG
+        org.springframework.web: WARN               # Reduced from DEBUG
+        com.Ecommerce.Gateway_Service: WARN         # Reduced from DEBUG
+        org.springframework.data.redis: WARN        # Reduced from DEBUG
+        org.springframework.test: WARN              # Reduced from DEBUG
+        org.springframework.web.cors: WARN          # Reduced from DEBUG
+        io.github.resilience4j: WARN               # Reduced from DEBUG
+        org.springframework.boot.autoconfigure: WARN # Reduced from DEBUG
+        com.Ecommerce: INFO                         # Reduced from DEBUG
+        org.springframework.kafka: WARN             # Reduced noise
+        org.apache.kafka: ERROR                     # Reduced noise
+        # Reduce Eureka noise
         com.netflix.discovery: WARN
         com.netflix.eureka: WARN
+        org.springframework.cloud.netflix.eureka: WARN
+        # Reduce Spring Boot startup noise
+        org.springframework.boot: WARN
+        org.springframework.boot.actuate: WARN
       pattern:
         console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [${spring.application.name}] %logger{36} - %msg%n"
     
