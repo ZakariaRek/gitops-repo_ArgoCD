@@ -1,16 +1,38 @@
+# environments/dev/observability/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Include the individual service overlays
+metadata:
+  name: observability-dev
+  namespace: observability
+
+# Include all observability service overlays
 resources:
-    - elk
-    - kiali  # FIXED: Changed from 'kiali' to 'Kiali' to match directory name
+  - prometheus
+
+  - grafana
+  - elk
+  - kiali
 
 # Use 'labels' instead of deprecated 'commonLabels'
 labels:
-    - pairs:
-          environment: dev
-          managed-by: argocd
-          platform: nexus-commerce
+  - pairs:
+      environment: dev
+      managed-by: argocd
+      platform: nexus-commerce
+      tier: development
 
 namespace: observability
+
+# Generate common dev configuration
+configMapGenerator:
+  - name: observability-dev-config
+    literals:
+      - ENVIRONMENT=development
+      - CLUSTER_NAME=nexus-commerce-dev
+      - LOG_LEVEL=info
+      - PROMETHEUS_URL=http://prometheus.observability.svc.cluster.local:9090
+      - GRAFANA_URL=http://grafana.observability.svc.cluster.local:3000
+      - ELASTICSEARCH_URL=http://elasticsearch.observability.svc.cluster.local:9200
+      - KIBANA_URL=http://kibana.observability.svc.cluster.local:5601
+      - KIALI_URL=http://kiali.observability.svc.cluster.local:20001

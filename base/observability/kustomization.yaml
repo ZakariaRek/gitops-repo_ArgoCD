@@ -1,3 +1,4 @@
+# base/observability/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -7,8 +8,8 @@ metadata:
 
 resources:
   - namespace.yaml
-  - prometheus  # Add Prometheus
-  - grafana     # Add Grafana
+  - prometheus
+  - grafana
   - elk
   - Kiali
 
@@ -29,6 +30,21 @@ configMapGenerator:
       - LOG_LEVEL=INFO
       - PROMETHEUS_URL=http://prometheus.observability.svc.cluster.local:9090
       - GRAFANA_URL=http://grafana.observability.svc.cluster.local:3000
+      - ELASTICSEARCH_URL=http://elasticsearch.observability.svc.cluster.local:9200
+      - KIBANA_URL=http://kibana.observability.svc.cluster.local:5601
       - KIALI_URL=http://kiali.observability.svc.cluster.local:20001
 
----
+# Base image versions
+images:
+  - name: prom/prometheus
+    newTag: v2.45.0
+  - name: grafana/grafana
+    newTag: 10.0.0
+  - name: docker.elastic.co/elasticsearch/elasticsearch
+    newTag: 8.11.0
+  - name: docker.elastic.co/logstash/logstash
+    newTag: 8.11.0
+  - name: docker.elastic.co/kibana/kibana
+    newTag: 8.11.0
+  - name: quay.io/kiali/kiali
+    newTag: v1.76
