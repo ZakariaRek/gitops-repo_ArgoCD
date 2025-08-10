@@ -8,17 +8,27 @@ metadata:
     component: microservices
 data:
   application.yml: |
+    # ===== SERVER CONFIGURATION =====
     server:
-      port: 8081
+      port: 8082
       servlet:
         context-path: /api/products
       error:
         include-stacktrace: always
         include-message: always
         include-binding-errors: always
+      connection-timeout: 60000
+      tomcat:
+        max-swallow-size: 10MB
+        max-http-form-post-size: 10MB
+        threads:
+          max: 50
+          min-spare: 5
+        max-connections: 200
+        accept-count: 50
+      max-http-request-header-size: 20KB
     
-    debug: true
-    
+    # ===== SPRING CONFIGURATION =====
     spring:
       profiles:
         active: docker,kafka
@@ -27,9 +37,24 @@ data:
       application:
         name: product-service
       
-      # Database Configuration
+      # Jackson Configuration
+      jackson:
+        serialization:
+          write-dates-as-timestamps: false
+      
+      # Multipart Configuration
+      servlet:
+        multipart:
+          max-file-size: 10MB
+          max-request-size: 10MB
+          file-size-threshold: 2KB
+          enabled: true
+        codec:
+          max-in-memory-size: 10MB
+      
+      # ===== DATABASE CONFIGURATION =====
       datasource:
-        url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb}
+        url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://product-postgres-service.data.svc.cluster.local:5432/productdb}
         username: ${SPRING_DATASOURCE_USERNAME:productservice}
         password: ${SPRING_DATASOURCE_PASSWORD:productservice123}
         driver-class-name: org.postgresql.Driver
@@ -37,29 +62,57 @@ data:
       jpa:
         hibernate:
           ddl-auto: update
-        show-sql: false
+        database-platform: org.hibernate.dialect.PostgreSQLDialect
+        show-sql: true
         properties:
           hibernate:
-            dialect: org.hibernate.dialect.PostgreSQLDialect
             format_sql: true
       
-      
-      
-      # Kafka Configuration - Enhanced like cart service
+      # ===== KAFKA CONFIGURATION =====
       kafka:
         bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka-service.data.svc.cluster.local:9092}
+        client-id: product-service-${random.uuid}
+        properties:
+          connections.max.idle.ms: 300000
+          request.timeout.ms: 30000
+          session.timeout.ms: 30000
+          heartbeat.interval.ms: 10000
+          metadata.max.age.ms: 300000
+          fetch.min.bytes: 1024
+          fetch.max.wait.ms: 5000
         producer:
           key-serializer: org.apache.kafka.common.serialization.StringSerializer
           value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+          batch-size: 16384
+          linger-ms: 5
+          buffer-memory: 33554432
+          retries: 3
+          request-timeout-ms: 30000
+          delivery-timeout-ms: 120000
+          acks: all
           properties:
+            spring.json.type.mapping: >-
+              productCreatedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductCreatedEvent,
+              productUpdatedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductUpdatedEvent,
+              productDeletedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductDeletedEvent,
+              productStockChangedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductStockChangedEvent,
+              productPriceChangedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductPriceChangedEvent,
+              productStatusChangedEvent:com.Ecommerce.Product_Service.events.ProductEvents$ProductStatusChangedEvent
             spring.json.add.type.headers: false
-            acks: all
-            retries: 3
             enable.idempotence: true
+            max.in.flight.requests.per.connection: 5
+            compression.type: snappy
         consumer:
           group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:product-service-group}
           auto-offset-reset: earliest
-          enable-auto-commit: false
+          enable-auto-commit: true
+          auto-commit-interval: 5000
+          max-poll-records: 10
+          max-poll-interval-ms: 300000
+          session-timeout-ms: 30000
+          heartbeat-interval-ms: 10000
+          fetch-min-size: 1024
+          fetch-max-wait: 5000
           key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
           properties:
@@ -68,40 +121,42 @@ data:
             spring.json.trusted.packages: "*"
             spring.json.use.type.headers: false
             spring.json.value.default.type: java.lang.Object
+        listener:
+          concurrency: 1
+          poll-timeout: 3000
+          type: single
+          ack-mode: batch
+        admin:
+          auto-create: true
     
-    # Eureka Configuration - Enhanced like cart service
+    # ===== EUREKA CONFIGURATION =====
     eureka:
       instance:
         preferIpAddress: true
         instanceId: ${spring.application.name}:${server.port}
         hostname: product-service
+        lease-renewal-interval-in-seconds: 30
+        lease-expiration-duration-in-seconds: 90
         metadataMap:
           instanceId: ${spring.application.name}:${server.port}
       client:
-        registryFetchIntervalSeconds: 5
-        instanceInfoReplicationIntervalSeconds: 5
-        initialInstanceInfoReplicationIntervalSeconds: 5
-        eurekaServiceUrlPollIntervalSeconds: 5
+        registryFetchIntervalSeconds: 30
+        instanceInfoReplicationIntervalSeconds: 30
+        initialInstanceInfoReplicationIntervalSeconds: 40
+        eurekaServiceUrlPollIntervalSeconds: 300
+        eureka-server-connect-timeout-seconds: 30
+        eureka-server-read-timeout-seconds: 30
+        eureka-connection-idle-timeout-seconds: 30
         registerWithEureka: true
         fetchRegistry: true
+        disable-delta: false
+        cache-refresh-executor-thread-pool-size: 2
+        cache-refresh-executor-exponential-back-off-bound: 10
         serviceUrl:
           defaultZone: ${EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE:http://eureka-server.infrastructure.svc.cluster.local:8761/eureka}
     
-    # Management and Monitoring - Enhanced
+    # ===== MANAGEMENT AND MONITORING =====
     management:
-      health:
-        circuitbreakers:
-          enabled: true
-        redis:
-          enabled: true
-        db:
-          enabled: true
-      endpoint:
-        health:
-          show-details: "ALWAYS"
-          show-components: "ALWAYS"
-        metrics:
-          enabled: true
       endpoints:
         web:
           exposure:
@@ -109,6 +164,14 @@ data:
           cors:
             allowed-origins: "*"
             allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
+      endpoint:
+        env:
+          show-values: ALWAYS
+        health:
+          show-details: "WHEN_AUTHORIZED"
+          show-components: "WHEN_AUTHORIZED"
+        metrics:
+          enabled: true
       metrics:
         distribution:
           percentiles-histogram:
@@ -117,40 +180,79 @@ data:
             http.server.requests: 0.5, 0.95, 0.99
         tags:
           application: ${spring.application.name}
+      tracing:
+        sampling:
+          probability: 0.0
     
-    # Logging Configuration
-    logging:
-      level:
-        com.nexuscommerce.productservice: INFO
-        org.springframework.web: INFO
-        org.springframework.kafka: INFO
-        org.hibernate.SQL: WARN
-        org.hibernate.type.descriptor.sql.BasicBinder: WARN
-      pattern:
-        console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    # ===== FILE UPLOAD CONFIGURATION =====
+    file:
+      upload-dir: ./uploads/images
+      max-size: 10485760  # 10MB in bytes
+      allowed-extensions: jpg,jpeg,png,gif,bmp,webp
+      allowed-mime-types: image/jpeg,image/png,image/gif,image/bmp,image/webp
     
-
-    
-    # SpringDoc Configuration
+    # ===== SPRINGDOC CONFIGURATION =====
     springdoc:
       api-docs:
+        path: /api-docs
         enabled: true
-        path: /v3/api-docs
       swagger-ui:
-        enabled: true
         path: /swagger-ui.html
-    
-    # Product Service Specific Configuration
-    product:
-      cache:
-        ttl: 3600
-        max-size: 1000
-      pagination:
-        default-size: 20
-        max-size: 100
-      search:
         enabled: true
-        index-batch-size: 1000
-      cleanup:
-        schedule: "0 0 */6 * * *" # Every 6 hours
+        operationsSorter: method
+        tagsSorter: alpha
+        doc-expansion: none
+      group-configs:
+        - group: product-service
+          paths-to-match:
+            - /**
+    
+    # ===== ELK CONFIGURATION =====
+    logstash:
+      host: ${LOGSTASH_HOST:localhost}
+      port: ${LOGSTASH_PORT:5000}
+    
+    # ===== LOGGING CONFIGURATION =====
+    logging:
+      level:
+        root: INFO
+        org.springframework.cloud.gateway: DEBUG
+        org.springframework.web: DEBUG
+        com.Ecommerce.Gateway_Service: DEBUG
+        org.springframework.data.redis: DEBUG
+        org.springframework.test: DEBUG
+        org.springframework.web.cors: DEBUG
+        io.github.resilience4j: DEBUG
+        org.springframework.boot.autoconfigure: DEBUG
+        com.Ecommerce: DEBUG
+        org.springframework.kafka: DEBUG
+        org.apache.kafka: WARN
+        com.netflix.discovery: WARN
+        com.netflix.eureka: WARN
+      pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [${spring.application.name}] %logger{36} - %msg%n"
+    
+    # ===== SONAR CONFIGURATION =====
+    sonar:
+      projectKey: product-service
+      projectName: NexusCommerce Product Service
+      projectVersion: 1.0.0
+      host:
+        url: http://localhost:9000
+      login: ${SONAR_TOKEN:sqp_51ebb50dcf0ee396c2d1dfb4da28fbabb23e6d43}
+      sources: src/main/java
+      tests: src/test/java
+      language: java
+      java:
+        source: 17
+        binaries: target/classes
+        test:
+          binaries: target/test-classes
+        libraries: target/dependency/*.jar
+      coverage:
+        jacoco:
+          xmlReportPaths: target/site/jacoco/jacoco.xml
+      exclusions: "**/*Application.java,**/config/**,**/dto/**,**/entity/**,**/model/**"
+      sourceEncoding: UTF-8
+      qualitygate:
+        wait: true
