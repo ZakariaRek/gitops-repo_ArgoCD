@@ -83,33 +83,33 @@ spec:
               memory: "2Gi"
               cpu: "1000m"
 
-          # Health Checks - Updated paths and port
+          # OPTIMIZED Health Checks - Longer timeouts to prevent premature kills
           livenessProbe:
             httpGet:
               path: /api/products/actuator/health
               port: 8082  # Updated port
-            initialDelaySeconds: 180
-            periodSeconds: 45
-            timeoutSeconds: 15
+            initialDelaySeconds: 300    # Increased to allow full startup
+            periodSeconds: 60           # Reduced frequency
+            timeoutSeconds: 20          # Increased timeout
             failureThreshold: 5
 
           readinessProbe:
             httpGet:
               path: /api/products/actuator/health/readiness
               port: 8082  # Updated port
-            initialDelaySeconds: 120
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 8
+            initialDelaySeconds: 180    # Increased for better startup
+            periodSeconds: 30           # Reduced frequency
+            timeoutSeconds: 15          # Increased timeout
+            failureThreshold: 10        # More tolerant
 
           startupProbe:
             httpGet:
               path: /api/products/actuator/health
               port: 8082  # Updated port
-            initialDelaySeconds: 60
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 30
+            initialDelaySeconds: 120    # Increased for dependencies
+            periodSeconds: 20           # Reduced frequency
+            timeoutSeconds: 15          # Increased timeout
+            failureThreshold: 40        # Much more tolerant
 
           volumeMounts:
             - name: config-volume
@@ -118,6 +118,8 @@ spec:
               mountPath: /app/logs
             - name: uploads-volume
               mountPath: /app/uploads
+            - name: tmp-volume
+              mountPath: /tmp
 
       volumes:
         - name: config-volume
@@ -127,10 +129,12 @@ spec:
           emptyDir: {}
         - name: uploads-volume
           emptyDir: {}
+        - name: tmp-volume
+          emptyDir: {}
 
-      # InitContainers for proper startup order
+      # OPTIMIZED InitContainers with better wait logic
       initContainers:
-        # Wait for PostgreSQL with correct service name
+        # Wait for PostgreSQL with timeout
         - name: wait-for-postgres
           image: busybox:1.35
           command: ['sh', '-c']
@@ -138,20 +142,19 @@ spec:
             - |
               echo "Waiting for PostgreSQL (product-postgres-service)..."
               timeout=300
-              elapsed=0
-              until nc -z product-postgres-service.data.svc.cluster.local 5432 || [ $elapsed -gt $timeout ]; do 
-                echo "PostgreSQL not ready, waiting... ($elapsed/$timeout)"
-                sleep 5
-                elapsed=$((elapsed + 5))
+              count=0
+              until nc -z product-postgres-service.data.svc.cluster.local 5432 || [ $count -eq $timeout ]; do 
+                echo "PostgreSQL not ready, waiting... ($count/$timeout)"
+                sleep 3
+                count=$((count+3))
               done
-              if [ $elapsed -gt $timeout ]; then
-                echo "ERROR: PostgreSQL not available after $timeout seconds"
+              if [ $count -eq $timeout ]; then
+                echo "PostgreSQL wait timeout reached!"
                 exit 1
-              else
-                echo "PostgreSQL is ready!"
               fi
+              echo "PostgreSQL is ready!"
 
-        # Wait for Kafka
+        # Wait for Kafka with timeout
         - name: wait-for-kafka
           image: busybox:1.35
           command: ['sh', '-c']
@@ -159,20 +162,19 @@ spec:
             - |
               echo "Waiting for Kafka..."
               timeout=300
-              elapsed=0
-              until nc -z kafka-service.data.svc.cluster.local 9092 || [ $elapsed -gt $timeout ]; do 
-                echo "Kafka not ready, waiting... ($elapsed/$timeout)"
-                sleep 5
-                elapsed=$((elapsed + 5))
+              count=0
+              until nc -z kafka-service.data.svc.cluster.local 9092 || [ $count -eq $timeout ]; do 
+                echo "Kafka not ready, waiting... ($count/$timeout)"
+                sleep 3
+                count=$((count+3))
               done
-              if [ $elapsed -gt $timeout ]; then
-                echo "ERROR: Kafka not available after $timeout seconds"
+              if [ $count -eq $timeout ]; then
+                echo "Kafka wait timeout reached!"
                 exit 1
-              else
-                echo "Kafka is ready!"
               fi
+              echo "Kafka is ready!"
 
-        # Wait for Eureka
+        # Wait for Eureka with timeout
         - name: wait-for-eureka
           image: busybox:1.35
           command: ['sh', '-c']
@@ -180,19 +182,19 @@ spec:
             - |
               echo "Waiting for Eureka..."
               timeout=300
-              elapsed=0
-              until nc -z eureka-server.infrastructure.svc.cluster.local 8761 || [ $elapsed -gt $timeout ]; do 
-                echo "Eureka not ready, waiting... ($elapsed/$timeout)"
+              count=0
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761 || [ $count -eq $timeout ]; do 
+                echo "Eureka not ready, waiting... ($count/$timeout)"
                 sleep 5
-                elapsed=$((elapsed + 5))
+                count=$((count+5))
               done
-              if [ $elapsed -gt $timeout ]; then
-                echo "WARNING: Eureka not available after $timeout seconds, proceeding anyway..."
-              else
-                echo "Eureka is ready!"
+              if [ $count -eq $timeout ]; then
+                echo "Eureka wait timeout reached!"
+                exit 1
               fi
+              echo "Eureka is ready!"
 
-        # Wait for Config Server
+        # Wait for Config Server with timeout
         - name: wait-for-config-server
           image: busybox:1.35
           command: ['sh', '-c']
@@ -200,14 +202,14 @@ spec:
             - |
               echo "Waiting for Config Server..."
               timeout=300
-              elapsed=0
-              until nc -z config-server.infrastructure.svc.cluster.local 8888 || [ $elapsed -gt $timeout ]; do 
-                echo "Config Server not ready, waiting... ($elapsed/$timeout)"
-                sleep 5
-                elapsed=$((elapsed + 5))
+              count=0
+              until nc -z config-server.infrastructure.svc.cluster.local 8888 || [ $count -eq $timeout ]; do 
+                echo "Config Server not ready, waiting... ($count/$timeout)"
+                sleep 3
+                count=$((count+3))
               done
-              if [ $elapsed -gt $timeout ]; then
-                echo "WARNING: Config Server not available after $timeout seconds, proceeding anyway..."
-              else
-                echo "Config Server is ready!"
+              if [ $count -eq $timeout ]; then
+                echo "Config Server wait timeout reached!"
+                exit 1
               fi
+              echo "Config Server is ready!"
