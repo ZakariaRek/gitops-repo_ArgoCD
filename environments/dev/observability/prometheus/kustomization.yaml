@@ -1,0 +1,229 @@
+# environments/dev/observability/prometheus/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: prometheus-dev
+  namespace: observability
+
+# Reference the base Prometheus configuration
+resources:
+  - ../../../../base/observability/prometheus
+  - prometheus-ingress.yaml
+
+# Use observability namespace
+namespace: observability
+
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+# Use stable Prometheus image
+images:
+  - name: prom/prometheus
+    newTag: v2.45.0
+
+# Single replica for dev
+replicas:
+  - name: prometheus
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: prometheus-dev-config
+    literals:
+      - ENVIRONMENT=development
+      - RETENTION_TIME=7d
+      - SCRAPE_INTERVAL=30s
+      - EVALUATION_INTERVAL=30s
+
+# Development-specific patches
+patches:
+  # Patch Prometheus deployment for dev environment
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: prometheus
+        namespace: observability
+      spec:
+        template:
+          spec:
+            containers:
+              - name: prometheus
+                args:
+                  - '--config.file=/etc/prometheus/prometheus.yml'
+                  - '--storage.tsdb.path=/prometheus/'
+                  - '--web.console.libraries=/etc/prometheus/console_libraries'
+                  - '--web.console.templates=/etc/prometheus/consoles'
+                  - '--storage.tsdb.retention.time=7d'  # Reduced for dev
+                  - '--web.enable-lifecycle'
+                  - '--web.enable-admin-api'
+                  - '--web.enable-remote-write-receiver'
+                  - '--log.level=info'
+                resources:
+                  requests:
+                    memory: "512Mi"
+                    cpu: "200m"
+                  limits:
+                    memory: "1Gi"
+                    cpu: "500m"
+    target:
+      kind: Deployment
+      name: prometheus
+
+  # Patch ConfigMap for dev-specific Prometheus config
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: prometheus-config
+        namespace: observability
+      data:
+        prometheus.yml: |
+          global:
+            scrape_interval: 30s  # Longer interval for dev
+            evaluation_interval: 30s
+            external_labels:
+              cluster: 'nexus-commerce-dev'
+              environment: 'development'
+
+          rule_files:
+            - "/etc/prometheus/rules/*.yml"
+
+          scrape_configs:
+            # Istio mesh metrics
+            - job_name: 'istio-mesh'
+              kubernetes_sd_configs:
+              - role: endpoints
+                namespaces:
+                  names:
+                  - istio-system
+              relabel_configs:
+              - source_labels: [__meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+                action: keep
+                regex: istio-telemetry;prometheus
+
+            # Istio proxy metrics (from all pods with sidecars)
+            - job_name: 'istio-proxy'
+              kubernetes_sd_configs:
+              - role: pod
+                namespaces:
+                  names:
+                  - microservices
+                  - infrastructure
+              relabel_configs:
+              - source_labels: [__meta_kubernetes_pod_annotation_sidecar_istio_io_status]
+                action: keep
+                regex: '.*'
+              - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                action: replace
+                regex: ([^:]+)(?::\d+)?;(\d+)
+                replacement: $1:15090  # Istio sidecar metrics port
+                target_label: __address__
+              - action: labelmap
+                regex: __meta_kubernetes_pod_label_(.+)
+              - source_labels: [__meta_kubernetes_namespace]
+                action: replace
+                target_label: namespace
+              - source_labels: [__meta_kubernetes_pod_name]
+                action: replace
+                target_label: pod_name
+              - source_labels: [__meta_kubernetes_pod_label_app]
+                action: replace
+                target_label: app
+              - source_labels: [__meta_kubernetes_pod_label_version]
+                action: replace
+                target_label: version
+
+            # Your microservices (Spring Boot Actuator + Go metrics)
+            - job_name: 'microservices-app'
+              kubernetes_sd_configs:
+              - role: service
+                namespaces:
+                  names:
+                  - microservices
+              relabel_configs:
+              - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape_app]
+                action: keep
+                regex: true
+              - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path_app]
+                action: replace
+                target_label: __metrics_path__
+                regex: (.+)
+              - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port_app]
+                action: replace
+                regex: ([^:]+)(?::\d+)?;(\d+)
+                replacement: $1:$2
+                target_label: __address__
+              - action: labelmap
+                regex: __meta_kubernetes_service_label_(.+)
+              - source_labels: [__meta_kubernetes_namespace]
+                action: replace
+                target_label: namespace
+              - source_labels: [__meta_kubernetes_service_name]
+                action: replace
+                target_label: service
+
+            # Kiali metrics
+            - job_name: 'kiali'
+              static_configs:
+              - targets: ['kiali.observability.svc.cluster.local:9090']
+
+            # ELK Stack metrics
+            - job_name: 'elasticsearch'
+              static_configs:
+              - targets: ['elasticsearch.observability.svc.cluster.local:9200']
+              metrics_path: /_prometheus/metrics
+              scrape_interval: 60s
+
+            # Kubernetes API server
+            - job_name: 'kubernetes-apiservers'
+              kubernetes_sd_configs:
+              - role: endpoints
+              scheme: https
+              tls_config:
+                ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              relabel_configs:
+              - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+                action: keep
+                regex: default;kubernetes;https
+
+            # Node Exporter (if available)
+            - job_name: 'kubernetes-nodes'
+              kubernetes_sd_configs:
+              - role: node
+              relabel_configs:
+              - action: labelmap
+                regex: __meta_kubernetes_node_label_(.+)
+              - target_label: __address__
+                replacement: kubernetes.default.svc:443
+              - source_labels: [__meta_kubernetes_node_name]
+                regex: (.+)
+                target_label: __metrics_path__
+                replacement: /api/v1/nodes/${1}/proxy/metrics
+    target:
+      kind: ConfigMap
+      name: prometheus-config
+
+  # Patch service to use NodePort for dev access
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: prometheus
+        namespace: observability
+      spec:
+        type: NodePort
+        ports:
+          - name: web
+            port: 9090
+            targetPort: web
+            nodePort: 30909
+            protocol: TCP
+    target:
+      kind: Service
+      name: prometheus

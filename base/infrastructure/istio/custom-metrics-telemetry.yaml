@@ -1,0 +1,27 @@
+# base/infrastructure/istio/custom-metrics-telemetry.yaml
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: custom-metrics
+  namespace: microservices
+  labels:
+    app: istio-telemetry
+    component: custom-metrics
+spec:
+  metrics:
+    - providers:
+        - name: prometheus
+    - overrides:
+        - match:
+            metric: ALL_METRICS
+          tagOverrides:
+            namespace:
+              value: "microservices"
+            cluster:
+              value: "nexus-commerce"
+            environment:
+              value: "{{.environment | default 'production'}}"
+            service_version:
+              value: "{{.destination_service_version | default 'unknown'}}"
+            request_protocol:
+              value: "{{.request_protocol}}"
