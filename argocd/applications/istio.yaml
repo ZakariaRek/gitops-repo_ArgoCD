@@ -1,4 +1,6 @@
-# argocd/applications/istio.yaml
+# File: argocd/applications/istio.yaml
+# FIXED: Remove duplicate PILOT_TRACE_SAMPLING environment variable
+
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -109,8 +111,8 @@ spec:
         revision: ""
         pilot:
           traceSampling: 100.0
+          # FIXED: Remove duplicate PILOT_TRACE_SAMPLING from env
           env:
-            PILOT_TRACE_SAMPLING: 100
             PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
         global:
           meshID: nexus-commerce
