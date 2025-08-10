@@ -36,8 +36,15 @@ spec:
             - configMapRef:
                 name: shipping-service-config
 
-          # Sensitive environment variables from Secret
+          # Explicit environment variables to override defaults
           env:
+            # Database configuration - EXPLICIT override
+            - name: DB_HOST
+              value: "shipping-postgres-service.data.svc.cluster.local"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "shippingdb"
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
@@ -49,11 +56,31 @@ spec:
                   name: shipping-service-secrets
                   key: db-password
 
+            # Kafka configuration - EXPLICIT override
+            - name: KAFKA_BROKERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+
+            # Server configuration - EXPLICIT override
+            - name: SERVER_PORT
+              value: "8085"
+
+            # Eureka configuration - EXPLICIT override
+            - name: EUREKA_URL
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+
+            # DISABLE Config Server - EXPLICIT override
+            - name: CONFIG_SERVER_URL
+              value: ""
+
             # Set IP address for Eureka registration
             - name: SERVICE_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+
+            # Debug: Print environment variables at startup
+            - name: DEBUG_ENV
+              value: "true"
 
           resources:
             requests:
@@ -104,7 +131,7 @@ spec:
         - name: tmp-volume
           emptyDir: {}
 
-      # Init containers to wait for dependencies
+      # Init containers to wait for dependencies (Config Server removed since disabled)
       initContainers:
         # Wait for PostgreSQL
         - name: wait-for-postgres
@@ -165,23 +192,3 @@ spec:
                 exit 1
               fi
               echo "Eureka is ready!"
-
-        # Wait for Config Server
-        - name: wait-for-config-server
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Waiting for Config Server..."
-              timeout=300
-              count=0
-              until nc -z config-server.infrastructure.svc.cluster.local 8888 || [ $count -eq $timeout ]; do 
-                echo "Config Server not ready, waiting... ($count/$timeout)"
-                sleep 3
-                count=$((count+3))
-              done
-              if [ $count -eq $timeout ]; then
-                echo "Config Server wait timeout reached!"
-                exit 1
-              fi
-              echo "Config Server is ready!"
