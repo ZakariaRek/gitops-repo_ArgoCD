@@ -22,7 +22,7 @@ labels:
 # Use development image tag
 images:
   - name: yahyazakaria123/ecommerce-app-product-service
-    newTag: latest  # You can change to dev-latest when available
+    newTag: latest
 
 # Reduce replicas for dev (save resources)
 replicas:
@@ -61,17 +61,12 @@ patches:
                     value: "true"
                   # Dev-specific database configuration
                   - name: SPRING_DATASOURCE_URL
-                    value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb_dev"
-                  - name: SPRING_DATA_REDIS_DATABASE
-                    value: "2"
+                    value: "jdbc:postgresql://product-postgres-service.data.svc.cluster.local:5432/productdb"
                   # Dev-specific product configuration
                   - name: PRODUCT_CACHE_TTL
                     value: "300"
                   - name: ENABLE_SQL_LOGGING
                     value: "true"
-                  # Relaxed timeouts for dev
-                  - name: SPRING_DATA_REDIS_TIMEOUT
-                    value: "5000ms"
                   # Enable SQL logging for dev
                   - name: SPRING_JPA_SHOW_SQL
                     value: "true"
@@ -79,16 +74,16 @@ patches:
                     value: "DEBUG"
                 resources:
                   requests:
-                    memory: "256Mi"
-                    cpu: "100m"
-                  limits:
                     memory: "512Mi"
                     cpu: "250m"
+                  limits:
+                    memory: "1Gi"
+                    cpu: "500m"
     target:
       kind: Deployment
       name: product-service
 
-  # Patch the service to use NodePort for easy access in dev
+  # Patch the service to use NodePort for easy access in dev with correct port
   - patch: |-
       apiVersion: v1
       kind: Service
@@ -99,9 +94,9 @@ patches:
         type: NodePort
         ports:
           - name: http
-            port: 8081
-            targetPort: 8081
-            nodePort: 30081
+            port: 8082
+            targetPort: 8082
+            nodePort: 30082
     target:
       kind: Service
       name: product-service

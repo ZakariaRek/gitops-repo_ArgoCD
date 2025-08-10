@@ -10,8 +10,8 @@ spec:
   selector:
     app: product-service
   ports:
-  - name: http
-    port: 8081
-    targetPort: 8081
-    protocol: TCP
+    - name: http
+      port: 8082  # Updated to match the application port
+      targetPort: 8082  # Updated to match the container port
+      protocol: TCP
   type: ClusterIP

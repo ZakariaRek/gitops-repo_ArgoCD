@@ -23,18 +23,19 @@ spec:
         - name: product-service
           image: yahyazakaria123/ecommerce-app-product-service:latest
           ports:
-            - containerPort: 8081
+            - containerPort: 8082  # Updated to match ConfigMap
               name: http
           env:
             - name: JAVA_OPTS
               value: "-Xmx1536m -Xms512m -XX:MaxMetaspaceSize=256m"
+
             # Application Configuration
             - name: SPRING_PROFILES_ACTIVE
               value: "docker,kafka"
             - name: SPRING_APPLICATION_NAME
               value: "product-service"
             - name: SERVER_PORT
-              value: "8081"
+              value: "8082"  # Updated to match ConfigMap
             - name: SERVER_SERVLET_CONTEXT_PATH
               value: "/api/products"
 
@@ -48,9 +49,9 @@ spec:
             - name: SPRING_CLOUD_CONFIG_URI
               value: "http://config-server.infrastructure.svc.cluster.local:8888"
 
-            # PostgreSQL Configuration (Cross-namespace)
+            # PostgreSQL Configuration - FIXED service name
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgres-service.data.svc.cluster.local:5432/productdb"
+              value: "jdbc:postgresql://product-postgres-service.data.svc.cluster.local:5432/productdb"
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -62,13 +63,17 @@ spec:
                   name: product-service-secrets
                   key: db-password
 
-
-
-            # Kafka Configuration (Cross-namespace)
+            # Kafka Configuration
             - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
               value: "kafka-service.data.svc.cluster.local:9092"
             - name: SPRING_KAFKA_CONSUMER_GROUP_ID
               value: "product-service-group"
+
+            # Logging Configuration
+            - name: LOGSTASH_HOST
+              value: "localhost"
+            - name: LOGSTASH_PORT
+              value: "5000"
 
           resources:
             requests:
@@ -78,39 +83,41 @@ spec:
               memory: "2Gi"
               cpu: "1000m"
 
-          # Health Checks - Enhanced like cart service
+          # Health Checks - Updated paths and port
           livenessProbe:
             httpGet:
               path: /api/products/actuator/health
-              port: 8081
-            initialDelaySeconds: 180  # Increased from 120
-            periodSeconds: 45         # Increased from 30
-            timeoutSeconds: 15        # Increased from 10
-            failureThreshold: 5       # Increased from 3
+              port: 8082  # Updated port
+            initialDelaySeconds: 180
+            periodSeconds: 45
+            timeoutSeconds: 15
+            failureThreshold: 5
 
           readinessProbe:
             httpGet:
               path: /api/products/actuator/health/readiness
-              port: 8081
-            initialDelaySeconds: 120  # Increased from 90
-            periodSeconds: 15         # Increased from 10
-            timeoutSeconds: 10        # Increased from 5
-            failureThreshold: 8       # Increased from 5
+              port: 8082  # Updated port
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 8
 
           startupProbe:
             httpGet:
               path: /api/products/actuator/health
-              port: 8081
-            initialDelaySeconds: 60   # Increased from 30
-            periodSeconds: 15         # Increased from 10
-            timeoutSeconds: 10        # Increased from 5
-            failureThreshold: 30      # Increased from 20
+              port: 8082  # Updated port
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 30
 
           volumeMounts:
             - name: config-volume
               mountPath: /app/config
             - name: logs-volume
               mountPath: /app/logs
+            - name: uploads-volume
+              mountPath: /app/uploads
 
       volumes:
         - name: config-volume
@@ -118,34 +125,31 @@ spec:
             name: product-service-config
         - name: logs-volume
           emptyDir: {}
+        - name: uploads-volume
+          emptyDir: {}
 
-      # InitContainers for proper startup order - Enhanced like cart service
+      # InitContainers for proper startup order
       initContainers:
-        # Wait for PostgreSQL
+        # Wait for PostgreSQL with correct service name
         - name: wait-for-postgres
           image: busybox:1.35
           command: ['sh', '-c']
           args:
             - |
-              echo "Waiting for PostgreSQL..."
-              until nc -z postgres-service.data.svc.cluster.local 5432; do 
-                echo "PostgreSQL not ready, waiting..."
-                sleep 3
+              echo "Waiting for PostgreSQL (product-postgres-service)..."
+              timeout=300
+              elapsed=0
+              until nc -z product-postgres-service.data.svc.cluster.local 5432 || [ $elapsed -gt $timeout ]; do 
+                echo "PostgreSQL not ready, waiting... ($elapsed/$timeout)"
+                sleep 5
+                elapsed=$((elapsed + 5))
               done
-              echo "PostgreSQL is ready!"
-
-        # Wait for Redis - Added like cart service
-        - name: wait-for-redis
-          image: busybox:1.35
-          command: ['sh', '-c']
-          args:
-            - |
-              echo "Waiting for Redis..."
-              until nc -z redis-service.data.svc.cluster.local 6379; do 
-                echo "Redis not ready, waiting..."
-                sleep 3
-              done
-              echo "Redis is ready!"
+              if [ $elapsed -gt $timeout ]; then
+                echo "ERROR: PostgreSQL not available after $timeout seconds"
+                exit 1
+              else
+                echo "PostgreSQL is ready!"
+              fi
 
         # Wait for Kafka
         - name: wait-for-kafka
@@ -154,11 +158,19 @@ spec:
           args:
             - |
               echo "Waiting for Kafka..."
-              until nc -z kafka-service.data.svc.cluster.local 9092; do 
-                echo "Kafka not ready, waiting..."
-                sleep 3
+              timeout=300
+              elapsed=0
+              until nc -z kafka-service.data.svc.cluster.local 9092 || [ $elapsed -gt $timeout ]; do 
+                echo "Kafka not ready, waiting... ($elapsed/$timeout)"
+                sleep 5
+                elapsed=$((elapsed + 5))
               done
-              echo "Kafka is ready!"
+              if [ $elapsed -gt $timeout ]; then
+                echo "ERROR: Kafka not available after $timeout seconds"
+                exit 1
+              else
+                echo "Kafka is ready!"
+              fi
 
         # Wait for Eureka
         - name: wait-for-eureka
@@ -167,8 +179,35 @@ spec:
           args:
             - |
               echo "Waiting for Eureka..."
-              until nc -z eureka-server.infrastructure.svc.cluster.local 8761; do 
-                echo "Eureka not ready, waiting..."
-                sleep 3
+              timeout=300
+              elapsed=0
+              until nc -z eureka-server.infrastructure.svc.cluster.local 8761 || [ $elapsed -gt $timeout ]; do 
+                echo "Eureka not ready, waiting... ($elapsed/$timeout)"
+                sleep 5
+                elapsed=$((elapsed + 5))
               done
-              echo "Eureka is ready!"
+              if [ $elapsed -gt $timeout ]; then
+                echo "WARNING: Eureka not available after $timeout seconds, proceeding anyway..."
+              else
+                echo "Eureka is ready!"
+              fi
+
+        # Wait for Config Server
+        - name: wait-for-config-server
+          image: busybox:1.35
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Config Server..."
+              timeout=300
+              elapsed=0
+              until nc -z config-server.infrastructure.svc.cluster.local 8888 || [ $elapsed -gt $timeout ]; do 
+                echo "Config Server not ready, waiting... ($elapsed/$timeout)"
+                sleep 5
+                elapsed=$((elapsed + 5))
+              done
+              if [ $elapsed -gt $timeout ]; then
+                echo "WARNING: Config Server not available after $timeout seconds, proceeding anyway..."
+              else
+                echo "Config Server is ready!"
+              fi
