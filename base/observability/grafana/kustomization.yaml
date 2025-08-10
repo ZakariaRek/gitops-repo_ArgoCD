@@ -1,3 +1,4 @@
+# base/observability/grafana/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -10,12 +11,16 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-  -
 
 labels:
   - pairs:
       app: grafana
       component: observability
+      version: "10.0.0"
+
+images:
+  - name: grafana/grafana
+    newTag: 10.0.0
 
 namespace: observability
 
