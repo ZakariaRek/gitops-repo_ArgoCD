@@ -1,3 +1,4 @@
+# argocd/applications/istio.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -18,20 +19,187 @@ spec:
     namespace: istio-system
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: false  # ⚠️ CRITICAL: Never auto-prune Istio resources
+      selfHeal: false  # ⚠️ CRITICAL: Disable self-heal for Istio
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true  # Required for Istio CRDs
+      - ServerSideApply=true
+      - ApplyOutOfSyncOnly=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
     retry:
-      limit: 5
+      limit: 10
       backoff:
-        duration: 5s
+        duration: 30s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 10m
+  # Enhanced ignore differences for Istio
   ignoreDifferences:
     - group: install.istio.io
       kind: IstioOperator
       jsonPointers:
         - /spec/revision
         - /status
+        - /spec/values/pilot/env
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        - /webhooks/1/clientConfig/caBundle
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+        - /webhooks/1/clientConfig/caBundle
+
+---
+# Separate Application for Istio installation via Helm
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nexus-istio-base
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: base
+    targetRevision: 1.20.0
+    helm:
+      values: |
+        defaultRevision: default
+        validationURL: ""
+        istiodRemote:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nexus-istio-istiod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: istiod
+    targetRevision: 1.20.0
+    helm:
+      values: |
+        revision: ""
+        pilot:
+          traceSampling: 100.0
+          env:
+            PILOT_TRACE_SAMPLING: 100
+            PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
+        global:
+          meshID: nexus-commerce
+          multiCluster:
+            clusterName: nexus-commerce-cluster
+          network: nexus-commerce-network
+          tracer:
+            zipkin:
+              address: zipkin-server.infrastructure:9411
+        telemetry:
+          v2:
+            enabled: true
+            prometheus:
+              configOverride:
+                metric_relabeling_configs:
+                  - source_labels: [__name__]
+                    regex: 'istio_.*'
+                    action: keep
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nexus-istio-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  source:
+    repoURL: https://istio-release.storage.googleapis.com/charts
+    chart: gateway
+    targetRevision: 1.20.0
+    helm:
+      values: |
+        service:
+          type: LoadBalancer
+          ports:
+            - port: 15021
+              targetPort: 15021
+              name: status-port
+              protocol: TCP
+            - port: 80
+              targetPort: 8080
+              name: http2
+              protocol: TCP
+            - port: 443
+              targetPort: 8443
+              name: https
+              protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        autoscaling:
+          enabled: false
+        replicaCount: 1
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m

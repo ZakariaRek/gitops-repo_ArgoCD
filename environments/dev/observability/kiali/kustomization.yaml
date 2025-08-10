@@ -1,0 +1,151 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: kiali-dev
+  namespace: observability
+
+# Reference the base Kiali configuration
+resources:
+  - ../../../../base/observability/Kiali  # FIXED: Changed from 'kiali' to 'Kiali'
+  - kiali-ingress.yaml
+
+# Use observability namespace
+namespace: observability
+
+# Add environment-specific labels
+labels:
+  - pairs:
+      environment: dev
+      tier: development
+
+# Use development image tag
+images:
+  - name: quay.io/kiali/kiali
+    newTag: v1.76
+
+# Single replica for dev
+replicas:
+  - name: kiali
+    count: 1
+
+# Generate additional ConfigMap with dev-specific settings
+configMapGenerator:
+  - name: kiali-dev-config
+    literals:
+      - LOG_LEVEL=debug
+      - ENVIRONMENT=development
+      - WEB_ROOT=/kiali
+
+# Development-specific patches
+patches:
+  # Patch Kiali deployment for dev environment
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: kiali
+        namespace: observability
+      spec:
+        template:
+          spec:
+            containers:
+              - name: kiali
+                env:
+                  - name: LOG_LEVEL
+                    value: "debug"
+                  - name: LOG_FORMAT
+                    value: "text"
+                  - name: WEB_ROOT
+                    value: "/kiali"
+                resources:
+                  requests:
+                    memory: "128Mi"
+                    cpu: "50m"
+                  limits:
+                    memory: "512Mi"
+                    cpu: "250m"
+    target:
+      kind: Deployment
+      name: kiali
+
+  # Patch ConfigMap for dev-specific settings
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: kiali-config
+        namespace: observability
+      data:
+        config.yaml: |
+          istio_namespace: istio-system
+          auth:
+            strategy: anonymous
+          deployment:
+            accessible_namespaces:
+            - "**"
+            namespace: observability
+            verbose_mode: debug
+          server:
+            port: 20001
+            web_root: /kiali
+            cors_allow_all: true
+          external_services:
+            istio:
+              root_namespace: istio-system
+              config_map_name: istio
+              istio_sidecar_annotation: sidecar.istio.io/status
+              url_service_version: http://istiod.istio-system:15014/version
+            prometheus:
+              url: http://prometheus.observability:9090
+            grafana:
+              enabled: true
+              in_cluster_url: http://grafana.observability:3000
+              url: http://grafana.nexus-commerce.local
+            tracing:
+              enabled: true
+              in_cluster_url: http://zipkin-server.infrastructure:9411
+              url: http://zipkin.nexus-commerce.local
+              use_grpc: false
+          api:
+            namespaces:
+              exclude:
+              - istio-operator
+              - kube.*
+              - openshift.*
+              - ibm.*
+              - kiali-operator
+          login_token:
+            signing_key: kiali-signing-key
+          # Development specific settings
+          installation_tag: dev
+          istio_labels:
+            app_label_name: app
+            version_label_name: version
+    target:
+      kind: ConfigMap
+      name: kiali-config
+
+  # Patch service to use NodePort for dev access
+  - patch: |-
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: kiali
+        namespace: observability
+      spec:
+        type: NodePort
+        ports:
+          - name: http
+            protocol: TCP
+            port: 20001
+            targetPort: api-port
+            nodePort: 32001
+          - name: http-metrics
+            protocol: TCP
+            port: 9090
+            targetPort: http-metrics
+            nodePort: 32090
+    target:
+      kind: Service
+      name: kiali
