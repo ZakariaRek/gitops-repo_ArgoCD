@@ -1,0 +1,23 @@
+# base/infrastructure/istio/access-logging-telemetry.yaml
+apiVersion: telemetry.istio.io/v1alpha1
+kind: Telemetry
+metadata:
+  name: access-logging
+  namespace: microservices
+  labels:
+    app: istio-telemetry
+    component: access-logging
+spec:
+  accessLogging:
+    - providers:
+        - name: otel
+    - match:
+        mode: CLIENT_AND_SERVER
+      format:
+        text: |
+          [%START_TIME%] "%REQ(:METHOD)% %REQ(X-ENVOY-ORIGINAL-PATH?:PATH)% %PROTOCOL%"
+          %RESPONSE_CODE% %RESPONSE_FLAGS% %BYTES_RECEIVED% %BYTES_SENT%
+          %DURATION% %RESP(X-ENVOY-UPSTREAM-SERVICE-TIME)% "%REQ(X-FORWARDED-FOR)%"
+          "%REQ(USER-AGENT)%" "%REQ(X-REQUEST-ID)%" "%REQ(:AUTHORITY)%" "%UPSTREAM_HOST%"
+          outbound|%UPSTREAM_CLUSTER% %DOWNSTREAM_REMOTE_ADDRESS%
+          service=%REQ(X-SERVICE-NAME)% user=%REQ(X-USER-ID)%

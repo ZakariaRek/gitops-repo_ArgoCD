@@ -1,3 +1,4 @@
+# Update to your base/observability/Kiali/ConfigMap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -24,17 +25,32 @@ data:
         config_map_name: istio
         istio_sidecar_annotation: sidecar.istio.io/status
         url_service_version: http://istiod.istio-system:15014/version
+      # UPDATED: Point to your Prometheus
       prometheus:
-        url: http://prometheus.observability:9090
+        url: http://prometheus.observability.svc.cluster.local:9090
+        custom_metrics_url: http://prometheus.observability.svc.cluster.local:9090
+        health_check_url: http://prometheus.observability.svc.cluster.local:9090/-/healthy
+      # UPDATED: Point to your Grafana
       grafana:
         enabled: true
-        in_cluster_url: http://grafana.observability:3000
+        in_cluster_url: http://grafana.observability.svc.cluster.local:3000
         url: http://grafana.nexus-commerce.local
+        dashboards:
+          - name: "Istio Service Dashboard"
+            variables:
+              namespace: "var-namespace"
+              service: "var-service"
+          - name: "Istio Workload Dashboard"
+            variables:
+              namespace: "var-namespace"
+              workload: "var-workload"
+      # UPDATED: Point to Zipkin if you have it
       tracing:
         enabled: true
-        in_cluster_url: http://zipkin-server.infrastructure:9411
+        in_cluster_url: http://zipkin-server.infrastructure.svc.cluster.local:9411
         url: http://zipkin.nexus-commerce.local
         use_grpc: false
+        whitelist_istio_system: ["jaeger-query", "istio-ingressgateway"]
     api:
       namespaces:
         exclude:
@@ -43,6 +59,17 @@ data:
           - openshift.*
           - ibm.*
           - kiali-operator
-          - observability
+        label_selector_exclude: "kiali.io/member-of=observability"
+    # ENHANCED: Better service mesh discovery
+    istio_labels:
+      app_label_name: "app"
+      version_label_name: "version"
+    # ENHANCED: Custom dashboard integration
+    custom_dashboards:
+      - name: envoy
+        title: Envoy Metrics
+        variables:
+          namespace: "var-namespace"
+          app: "var-app"
     login_token:
       signing_key: kiali-signing-key

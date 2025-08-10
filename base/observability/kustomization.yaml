@@ -7,8 +7,10 @@ metadata:
 
 resources:
   - namespace.yaml
+  - prometheus  # Add Prometheus
+  - grafana     # Add Grafana
   - elk
-  - Kiali  # Changed from 'kiali' to 'Kiali' to match actual directory
+  - Kiali
 
 labels:
   - pairs:
@@ -25,3 +27,8 @@ configMapGenerator:
       - CLUSTER_NAME=nexus-commerce
       - ENVIRONMENT=base
       - LOG_LEVEL=INFO
+      - PROMETHEUS_URL=http://prometheus.observability.svc.cluster.local:9090
+      - GRAFANA_URL=http://grafana.observability.svc.cluster.local:3000
+      - KIALI_URL=http://kiali.observability.svc.cluster.local:20001
+
+---

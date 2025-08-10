@@ -1,48 +1,7 @@
-apiVersion: security.istio.io/v1beta1
-kind: AuthorizationPolicy
-metadata:
-  name: payment-service-authz
-  namespace: microservices
-spec:
-  selector:
-    matchLabels:
-      app: payment-service
-  rules:
-    - from:
-        - source:
-            principals: ["cluster.local/ns/microservices/sa/order-service"]
-            namespaces: ["microservices", "infrastructure"]
-    - to:
-        - operation:
-            methods: ["GET", "POST"]
-            paths: ["/api/payments/*", "/health", "/metrics"]
-
----
-apiVersion: security.istio.io/v1beta1
-kind: AuthorizationPolicy
-metadata:
-  name: user-service-authz
-  namespace: microservices
-spec:
-  selector:
-    matchLabels:
-      app: user-service
-  rules:
-    - from:
-        - source:
-            namespaces: ["microservices", "infrastructure", "istio-system"]
-    - to:
-        - operation:
-            methods: ["GET", "POST", "PUT", "DELETE"]
-            paths: ["/api/users/*", "/actuator/health"]
-
----
-# File: base/infrastructure/istio/telemetry.yaml
-# Enhanced observability configuration
 apiVersion: telemetry.istio.io/v1alpha1
 kind: Telemetry
 metadata:
-  name: metrics-collection
+  name: enhanced-metrics-collection
   namespace: istio-system
 spec:
   metrics:
@@ -56,15 +15,19 @@ spec:
               value: "{{.destination_workload}}"
             source_app:
               value: "{{.source_app}}"
-
----
-apiVersion: telemetry.istio.io/v1alpha1
-kind: Telemetry
-metadata:
-  name: tracing-config
-  namespace: istio-system
-spec:
-  tracing:
-    - providers:
-        - name: zipkin
-    - randomSamplingPercentage: 100.0  # Full sampling for development
+            request_protocol:
+              value: "{{.request_protocol}}"
+            response_code:
+              value: "{{.response_code}}"
+        - match:
+            metric: REQUEST_DURATION
+          tagOverrides:
+            destination_service_name:
+              value: "{{.destination_workload}}"
+            source_app:
+              value: "{{.source_app}}"
+        - match:
+            metric: TCP_OPENED_CONNECTIONS
+          tagOverrides:
+            destination_service_name:
+              value: "{{.destination_workload}}"
