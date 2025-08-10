@@ -7,110 +7,91 @@ metadata:
     app: shipping-service
     component: microservices
 data:
-  application.yml: |
-    server:
-      port: 8082
-    
-    app:
-      name: SHIPPING-SERVICE
-      environment: docker
-      version: "2.0.0"
-    
-    # Database Configuration
-    datasource:
-      host: shipping-postgres-service.data.svc.cluster.local
-      port: "5432"
-      database: shippingdb
-      username: shippingservice
-      password: # Will be overridden by secret
-      sslmode: disable
-      max-open-conns: "25"
-      max-idle-conns: "5"
-    
-    # Eureka Configuration
-    eureka:
-      client:
-        service-url:
-          defaultZone: http://eureka-server.infrastructure.svc.cluster.local:8761/eureka
-        register-with-eureka: true
-        fetch-registry: true
-      instance:
-        hostname: shipping-service
-        preferIpAddress: true
-        instanceId: shipping-service:8082
-        lease-renewal-interval-in-seconds: 30
-        lease-expiration-duration-in-seconds: 90
-    
-    # Kafka Configuration
-    kafka:
-      brokers: kafka-service.data.svc.cluster.local:9092
-      consumer:
-        group: shipping-service-group
-        enable: true
-        topics: shipping-created,shipping-updated,shipping-status-changed,shipping-deleted,tracking-created,tracking-updated,tracking-deleted
-      producer:
-        acks: all
-        retries: 3
-        batch-size: 16384
-        linger-ms: 5
-        buffer-memory: 33554432
-        compression-type: snappy
-      topics:
-        shipping-created: shipping-created
-        shipping-updated: shipping-updated
-        shipping-status-changed: shipping-status-changed
-        shipping-deleted: shipping-deleted
-        shipping-order-update: shipping-update
-        tracking-created: tracking-created
-        tracking-updated: tracking-updated
-        tracking-deleted: tracking-deleted
-    
-    # Config Server Configuration
-    config:
-      server:
-        url: http://config-server.infrastructure.svc.cluster.local:8888
-        profile: docker
-        label: main
-        enabled: true
-        fail-fast: false
-        retry:
-          initial-interval: 1000
-          max-attempts: 6
-          max-interval: 2000
-          multiplier: 1.1
-    
-    # Service Configuration
-    service:
-      shipping-only: false
-      tracking-only: false
-      enable-gps-tracking: true
-      enable-real-time-updates: true
-      enable-address-management: true
-      enable-location-updates: true
-    
-    # Monitoring and Health
-    management:
-      endpoints:
-        web:
-          exposure:
-            include: health,info,metrics,prometheus
-      endpoint:
-        health:
-          show-details: always
-      metrics:
-        export:
-          prometheus:
-            enabled: true
-    
-    # Logging Configuration
-    logging:
-      level:
-        root: INFO
-        com.ecommerce.shipping: DEBUG
-      pattern:
-        console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-      file:
-        name: /app/logs/shipping-service.log
-        max-size: 10MB
-        max-history: 30
+  # Server settings
+  SERVER_PORT: "8085"
+  ENVIRONMENT: "development"
+
+  # Config Server settings
+  CONFIG_SERVER_URL: "http://config-server.infrastructure.svc.cluster.local:8888"
+  CONFIG_PROFILE: "development"
+  CONFIG_LABEL: "main"
+
+  # Database settings (fallback if Config Server is unavailable)
+  DB_HOST: "shipping-postgres-service.data.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "shippingdb"
+
+  # Enhanced features
+  ENABLE_GPS_TRACKING: "true"
+  ENABLE_REAL_TIME_LOCATION: "true"
+  DEFAULT_ORIGIN_COMPANY: "Shipping Company"
+  DEFAULT_ORIGIN_ADDRESS: "123 Warehouse St"
+  DEFAULT_ORIGIN_CITY: "Distribution City"
+  DEFAULT_ORIGIN_STATE: "DC"
+  DEFAULT_ORIGIN_POSTAL: "12345"
+  DEFAULT_ORIGIN_COUNTRY: "USA"
+
+  # Eureka settings
+  EUREKA_PREFER_IP_ADDRESS: "true"
+  EUREKA_INSTANCE_HOSTNAME: "shipping-service"
+  EUREKA_INSTANCE_ID: "shipping-service:8085"
+  EUREKA_URL: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+
+  # Kafka settings - Basic
+  KAFKA_BROKERS: "kafka-service.data.svc.cluster.local:9092"
+  KAFKA_CONSUMER_GROUP: "shipping-service-group"
+  KAFKA_ENABLE_CONSUMER: "true"
+
+  # Kafka settings - Shipping topics
+  KAFKA_SHIPPING_CREATED_TOPIC: "shipping-created"
+  KAFKA_SHIPPING_UPDATED_TOPIC: "shipping-updated"
+  KAFKA_SHIPPING_STATUS_CHANGED_TOPIC: "shipping-status-changed"
+  KAFKA_SHIPPING_DELETED_TOPIC: "shipping-deleted"
+  KAFKA_SHIPPING_ORDER_UPDATE_TOPIC: "shipping-update"
+
+  # Kafka settings - Tracking topics
+  KAFKA_TRACKING_CREATED_TOPIC: "tracking-created"
+  KAFKA_TRACKING_UPDATED_TOPIC: "tracking-updated"
+  KAFKA_TRACKING_DELETED_TOPIC: "tracking-deleted"
+
+  # ELK Stack Configuration
+  ENABLE_ELK_LOGGING: "true"
+  ENABLE_KAFKA_LOGGING: "true"
+  ELK_KAFKA_TOPIC: "app-logs"
+
+  # Elasticsearch Configuration
+  ELASTICSEARCH_URL: "http://elasticsearch-service.data.svc.cluster.local:9200"
+  ELASTICSEARCH_USERNAME: ""
+  ELASTICSEARCH_PASSWORD: ""
+
+  # Logstash Configuration
+  LOGSTASH_HOST: "logstash-service.data.svc.cluster.local"
+  LOGSTASH_PORT: "5044"
+
+  # Kibana Configuration
+  KIBANA_URL: "http://kibana-service.data.svc.cluster.local:5601"
+
+  # Logging Configuration
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+
+  # Service Information
+  SERVICE_VERSION: "2.0.0"
+  SERVICE_NAME: "shipping-service"
+
+  # Performance Monitoring
+  ENABLE_METRICS: "true"
+  METRICS_PORT: "9090"
+
+  # Service mode configuration
+  USE_SHIPPING_ONLY: "false"
+  USE_TRACKING_ONLY: "false"
+
+  # Go Runtime settings
+  GOOS: "linux"
+  GOARCH: "amd64"
+  GIN_MODE: "release"
+
+  # Application name for Eureka
+  APP_NAME: "SHIPPING-SERVICE"
+  HOST_NAME: "shipping-service"

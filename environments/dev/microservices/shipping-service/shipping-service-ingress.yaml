@@ -52,7 +52,7 @@ spec:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
 
     # Alternative API endpoints for different shipping functions
     - host: shipping-api.nexus-commerce.local
@@ -64,28 +64,28 @@ spec:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
           - path: /api/v1/tracking
             pathType: Prefix
             backend:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
           - path: /api/v1/addresses
             pathType: Prefix
             backend:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
           - path: /api/v1/location-updates
             pathType: Prefix
             backend:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
 
     # Health and monitoring endpoints
     - host: shipping-monitor.nexus-commerce.local
@@ -97,18 +97,18 @@ spec:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
           - path: /info
             pathType: Exact
             backend:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
           - path: /metrics
             pathType: Exact
             backend:
               service:
                 name: shipping-service
                 port:
-                  number: 8082
+                  number: 8085
