@@ -49,32 +49,103 @@ spec:
             - name: ENVIRONMENT
               value: "docker"
 
-            # Database Configuration
+            # Database Configuration - Multiple naming conventions
             - name: DB_HOST
               value: "shipping-postgres-service.data.svc.cluster.local"
+            - name: DATABASE_HOST
+              value: "shipping-postgres-service.data.svc.cluster.local"
+            - name: POSTGRES_HOST
+              value: "shipping-postgres-service.data.svc.cluster.local"
+
             - name: DB_PORT
               value: "5432"
+            - name: DATABASE_PORT
+              value: "5432"
+            - name: POSTGRES_PORT
+              value: "5432"
+
             - name: DB_NAME
               value: "shippingdb"
+            - name: DATABASE_NAME
+              value: "shippingdb"
+            - name: POSTGRES_DB
+              value: "shippingdb"
+
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
                   name: shipping-service-secrets
                   key: db-username
+            - name: DATABASE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shipping-service-secrets
+                  key: db-username
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: shipping-service-secrets
+                  key: db-username
+
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: shipping-service-secrets
                   key: db-password
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shipping-service-secrets
+                  key: db-password
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: shipping-service-secrets
+                  key: db-password
+
             - name: DB_SSLMODE
+              value: "disable"
+            - name: DATABASE_SSLMODE
               value: "disable"
             - name: DB_MAX_OPEN_CONNS
               value: "25"
             - name: DB_MAX_IDLE_CONNS
               value: "5"
 
-            # Eureka Configuration
+            # Complete Database URL for convenience
+            - name: DATABASE_URL
+              value: "postgres://$(DB_USER):$(DB_PASSWORD)@shipping-postgres-service.data.svc.cluster.local:5432/shippingdb?sslmode=disable"
+            - name: DB_URL
+              value: "postgres://$(DB_USER):$(DB_PASSWORD)@shipping-postgres-service.data.svc.cluster.local:5432/shippingdb?sslmode=disable"
+
+            # Kafka Configuration - Multiple naming conventions
+            - name: KAFKA_BROKERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: KAFKA_SERVERS
+              value: "kafka-service.data.svc.cluster.local:9092"
+            - name: KAFKA_URL
+              value: "kafka-service.data.svc.cluster.local:9092"
+
+            - name: KAFKA_CONSUMER_GROUP
+              value: "shipping-service-group"
+            - name: KAFKA_CONSUMER_GROUP_ID
+              value: "shipping-service-group"
+            - name: KAFKA_GROUP_ID
+              value: "shipping-service-group"
+
+            - name: KAFKA_ENABLE_CONSUMER
+              value: "true"
+            - name: KAFKA_CONSUMER_TOPICS
+              value: "shipping-created,shipping-updated,shipping-status-changed,shipping-deleted,tracking-created,tracking-updated,tracking-deleted"
+
+            # Eureka Configuration - Multiple naming conventions
             - name: EUREKA_URL
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: EUREKA_SERVER_URL
+              value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
+            - name: EUREKA_DEFAULT_ZONE
               value: "http://eureka-server.infrastructure.svc.cluster.local:8761/eureka"
             - name: EUREKA_INSTANCE_HOSTNAME
               value: "shipping-service"
@@ -98,16 +169,6 @@ spec:
               value: "docker"
             - name: CONFIG_LABEL
               value: "main"
-
-            # Kafka Configuration
-            - name: KAFKA_BROKERS
-              value: "kafka-service.data.svc.cluster.local:9092"
-            - name: KAFKA_CONSUMER_GROUP
-              value: "shipping-service-group"
-            - name: KAFKA_ENABLE_CONSUMER
-              value: "true"
-            - name: KAFKA_CONSUMER_TOPICS
-              value: "shipping-created,shipping-updated,shipping-status-changed,shipping-deleted,tracking-created,tracking-updated,tracking-deleted"
 
             # Kafka Topic Configuration
             - name: KAFKA_SHIPPING_CREATED_TOPIC
@@ -153,49 +214,6 @@ spec:
                   name: shipping-service-secrets
                   key: encryption-key
 
-            # External Service API Keys
-            - name: GPS_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: gps-api-key
-            - name: GEOCODING_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: geocoding-api-key
-
-            # Shipping Provider Configuration
-            - name: UPS_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: ups-api-key
-            - name: UPS_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: ups-username
-                  optional: true
-            - name: UPS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: ups-password
-                  optional: true
-            - name: FEDEX_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: fedex-api-key
-                  optional: true
-            - name: FEDEX_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: shipping-service-secrets
-                  key: fedex-secret
-                  optional: true
-
             # Monitoring and Logging
             - name: LOG_LEVEL
               value: "INFO"
@@ -205,14 +223,6 @@ spec:
               value: "true"
             - name: ENABLE_HEALTH_CHECK
               value: "true"
-
-            # ELK Stack Configuration
-            - name: ENABLE_ELK_LOGGING
-              value: "true"
-            - name: ELASTICSEARCH_URL
-              value: "http://elasticsearch.monitoring.svc.cluster.local:9200"
-            - name: LOGSTASH_URL
-              value: "logstash.monitoring.svc.cluster.local:5000"
 
             # Performance and Resource Limits
             - name: MAX_CONCURRENT_REQUESTS
