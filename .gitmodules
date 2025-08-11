@@ -1,0 +1,3 @@
+[submodule "Ecommerce-App-Helm-Charts"]
+	path = Ecommerce-App-Helm-Charts
+	url = https://github.com/ZakariaRek/Ecommerce-App-Helm-Charts.git
