@@ -23,6 +23,8 @@ spec:
         prometheus.io/port: "8085"
         prometheus.io/path: "/metrics"
     spec:
+      nodeSelector:
+        node-role: microservices
       containers:
         - name: shipping-service
           image: yahyazakaria123/ecommerce-app-shipping-service:latest

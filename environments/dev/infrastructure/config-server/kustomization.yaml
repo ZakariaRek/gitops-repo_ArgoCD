@@ -37,6 +37,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: infrastructure
             containers:
               - name: config-server
                 env:

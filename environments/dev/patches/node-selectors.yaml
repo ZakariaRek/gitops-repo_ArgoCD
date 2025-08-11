@@ -1,0 +1,351 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: infrastructure
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: infrastructure
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-server
+  namespace: infrastructure
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: infrastructure
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: infrastructure
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: infrastructure
+
+# Microservices Node Selector Patch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loyalty-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shipping-service
+  namespace: microservices
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: microservices
+
+# Data Layer Node Selector Patch
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cart-mongodb
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: user-mongodb
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: product-postgres
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: payment-postgres
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: order-postgres
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: loyalty-postgres
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: shipping-postgres
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-service
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: data
+
+# Observability Node Selector Patch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: observability
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: observability
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: observability
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  namespace: observability
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: observability
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: observability
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: observability
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: observability
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: observability
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kiali
+  namespace: observability
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: observability
+
+# GitOps + Tools Node Selector Patch
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-ui
+  namespace: data
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: gitops-tools
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipkin-server
+  namespace: infrastructure
+spec:
+  template:
+    spec:
+      nodeSelector:
+        node-role: gitops-tools

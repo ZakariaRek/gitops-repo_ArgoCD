@@ -19,6 +19,8 @@ spec:
         component: microservices
         tier: backend
     spec:
+      nodeSelector:
+        node-role: microservices
       containers:
         - name: cart-service
           image: yahyazakaria123/ecommerce-app-cart-service:latest

@@ -50,6 +50,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: microservices
             containers:
               - name: cart-service
                 env:

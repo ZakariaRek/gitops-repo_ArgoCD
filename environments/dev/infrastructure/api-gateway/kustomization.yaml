@@ -47,7 +47,10 @@ patches:
     spec:
       template:
         spec:
+          nodeSelector:
+            node-role: infrastructure
           containers:
+          
           - name: api-gateway
             env:
             - name: SPRING_PROFILES_ACTIVE

@@ -17,6 +17,8 @@ spec:
         app: loyalty-service
         component: microservices
     spec:
+      nodeSelector:
+        node-role: microservices
       containers:
         - name: loyalty-service
           image: yahyazakaria123/ecommerce-app-loyalty-service:latest

@@ -60,6 +60,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: data
             containers:
               - name: mongodb
                 resources:

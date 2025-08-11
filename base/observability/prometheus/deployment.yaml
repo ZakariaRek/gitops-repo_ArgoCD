@@ -18,6 +18,8 @@ spec:
         app: prometheus
         component: observability
     spec:
+      nodeSelector:
+        node-role: observability
       serviceAccountName: prometheus
       containers:
         - name: prometheus

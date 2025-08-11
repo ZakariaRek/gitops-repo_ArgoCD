@@ -19,6 +19,8 @@ spec:
         component: data
         tier: cache
     spec:
+      nodeSelector:
+        node-role: data
       containers:
         - name: redis
           image: redis:7.2-alpine

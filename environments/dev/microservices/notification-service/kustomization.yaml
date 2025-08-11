@@ -51,6 +51,8 @@ patches:
     spec:
       template:
         spec:
+          nodeSelector:
+            node-role: microservices
           containers:
           - name: notification-service
             env:

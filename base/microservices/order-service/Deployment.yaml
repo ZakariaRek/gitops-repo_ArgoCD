@@ -17,6 +17,8 @@ spec:
         app: order-service
         component: microservices
     spec:
+      nodeSelector:
+        node-role: microservices
       containers:
         - name: order-service
           image: yahyazakaria123/ecommerce-app-order-service:latest

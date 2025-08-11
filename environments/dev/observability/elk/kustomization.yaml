@@ -58,6 +58,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: observability
             containers:
               - name: elasticsearch
                 env:

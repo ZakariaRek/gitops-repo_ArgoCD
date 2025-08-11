@@ -34,6 +34,8 @@ patches:
     spec:
       template:
         spec:
+          nodeSelector:
+            node-role: infrastructure
           containers:
           - name: eureka-server
             env:

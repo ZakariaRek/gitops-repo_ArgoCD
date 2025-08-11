@@ -14,7 +14,6 @@ resources:
   - service-entries.yaml
   - peer-authentication.yaml
   - authorization-policy.yaml
-  # Add the new enhanced telemetry configurations
   - custom-metrics-telemetry.yaml
   - access-logging-telemetry.yaml
 

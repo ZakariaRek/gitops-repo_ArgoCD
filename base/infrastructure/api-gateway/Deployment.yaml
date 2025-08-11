@@ -17,6 +17,8 @@ spec:
         app: api-gateway
         component: infrastructure
     spec:
+      nodeSelector:
+        node-role: infrastructure
       containers:
         - name: api-gateway
           image: yahyazakaria123/ecommerce-app-api-gateway-service:latest

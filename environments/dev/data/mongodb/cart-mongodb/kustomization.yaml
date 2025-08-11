@@ -62,6 +62,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: data
             containers:
               - name: mongodb
                 # FIXED: Reduced resources for dev environment

@@ -35,6 +35,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: infrastructure
             containers:
               - name: zipkin
                 env:
