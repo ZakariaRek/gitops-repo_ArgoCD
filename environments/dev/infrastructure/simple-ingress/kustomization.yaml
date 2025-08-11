@@ -1,0 +1,34 @@
+#apiVersion: kustomize.config.k8s.io/v1beta1
+#kind: Kustomization
+#
+#resources:
+#- ../../../../base/infrastructure/simple-ingress
+#
+#labels:
+#- pairs:
+#    environment: dev
+#    tier: development
+#
+#namespace: ingress-nginx
+#
+## Dev-specific patches using new syntax
+#patches:
+#- patch: |-
+#    apiVersion: v1
+#    kind: Service
+#    metadata:
+#      name: simple-ingress-controller
+#    spec:
+#      type: NodePort
+#      ports:
+#      - name: http
+#        port: 80
+#        targetPort: 80
+#        nodePort: 30080
+#      - name: https
+#        port: 443
+#        targetPort: 443
+#        nodePort: 30443
+#  target:
+#    kind: Service
+#    name: simple-ingress-controller
