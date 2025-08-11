@@ -1,0 +1,144 @@
+global:
+  namespace: data
+  environment: staging
+  storageClass: standard
+  nodeSelector:
+    node-role: data
+
+# MongoDB Configuration for Staging (Mid-size between dev and prod)
+mongodb:
+  enabled: true
+
+  cart:
+    enabled: true
+    replicas: 2
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      data:
+        size: 10Gi
+      config:
+        size: 2Gi
+
+  user:
+    enabled: true
+    replicas: 2
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      data:
+        size: 10Gi
+      config:
+        size: 2Gi
+
+# PostgreSQL Configuration for Staging
+postgresql:
+  enabled: true
+
+  product:
+    enabled: true
+    storage:
+      size: 20Gi
+
+  payment:
+    enabled: true
+    storage:
+      size: 20Gi
+
+  order:
+    enabled: true
+    storage:
+      size: 20Gi
+
+  loyalty:
+    enabled: true
+    storage:
+      size: 10Gi
+
+  shipping:
+    enabled: true
+    storage:
+      size: 10Gi
+
+# Redis Configuration for Staging
+redis:
+  enabled: true
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "200m"
+    limits:
+      memory: "1Gi"
+      cpu: "400m"
+
+  storage:
+    size: 5Gi
+
+  config:
+    maxmemory: "512mb"
+
+# Messaging Configuration for Staging
+messaging:
+  enabled: true
+
+  zookeeper:
+    enabled: true
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      data:
+        size: 5Gi
+      logs:
+        size: 2Gi
+
+  kafka:
+    enabled: true
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    storage:
+      size: 20Gi
+
+    config:
+      logRetentionHours: 72  # 3 days
+      logRetentionBytes: "2147483648"  # 2GB
+
+# Monitoring for Staging
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+
+# Backup for Staging
+backup:
+  enabled: true
+  schedule: "0 3 * * *"  # Daily at 3 AM
+  retention: 14  # Keep for 14 days

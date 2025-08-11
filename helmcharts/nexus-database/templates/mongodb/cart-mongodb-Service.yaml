@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cart-mongodb-headless
+  namespace: data
+  labels:
+    app: cart-mongodb
+    component: data
+    service: cart-service
+    tier: database
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: cart-mongodb
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+      protocol: TCP

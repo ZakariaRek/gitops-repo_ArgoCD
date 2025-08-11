@@ -1,0 +1,139 @@
+# values-dev.yaml - Development Environment
+global:
+  namespace: data
+  environment: development
+  storageClass: standard
+  nodeSelector:
+    node-role: data
+
+# MongoDB Configuration for Development
+mongodb:
+  enabled: true
+
+  cart:
+    enabled: true
+    replicas: 1  # Single replica for dev
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      data:
+        size: 2Gi  # Smaller storage for dev
+      config:
+        size: 500Mi
+
+  user:
+    enabled: true
+    replicas: 1  # Single replica for dev
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      data:
+        size: 2Gi  # Smaller storage for dev
+      config:
+        size: 500Mi
+
+# PostgreSQL Configuration for Development
+postgresql:
+  enabled: true
+
+  product:
+    enabled: true
+    storage:
+      size: 5Gi  # Smaller storage for dev
+
+  payment:
+    enabled: true
+    storage:
+      size: 5Gi
+
+  order:
+    enabled: true
+    storage:
+      size: 5Gi
+
+  loyalty:
+    enabled: true
+    storage:
+      size: 5Gi
+
+  shipping:
+    enabled: true
+    storage:
+      size: 5Gi
+
+# Redis Configuration for Development
+redis:
+  enabled: true
+
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "100m"
+
+  storage:
+    size: 1Gi  # Smaller storage for dev
+
+  config:
+    maxmemory: "256mb"
+
+# Messaging Configuration for Development
+messaging:
+  enabled: true
+
+  zookeeper:
+    enabled: true
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      data:
+        size: 2Gi  # Smaller storage for dev
+      logs:
+        size: 1Gi
+
+  kafka:
+    enabled: true
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      size: 5Gi  # Smaller storage for dev
+
+    config:
+      logRetentionHours: 24  # Shorter retention for dev
+      logRetentionBytes: "536870912"  # 512MB
+
+# Monitoring for Development
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true

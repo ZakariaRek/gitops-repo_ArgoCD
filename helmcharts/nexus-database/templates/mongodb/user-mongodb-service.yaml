@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mongodb-headless
+  namespace: data
+  labels:
+    app: user-mongodb
+    component: data
+    service: user-service
+    tier: database
+spec:
+  clusterIP: None  # Headless service
+  selector:
+    app: user-mongodb
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+      protocol: TCP
+
+---
+# Regular service for backward compatibility
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-mongodb-service
+  namespace: data
+  labels:
+    app: user-mongodb
+    component: data
+    service: user-service
+    tier: database
+spec:
+  selector:
+    app: user-mongodb
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+      protocol: TCP
+  type: ClusterIP

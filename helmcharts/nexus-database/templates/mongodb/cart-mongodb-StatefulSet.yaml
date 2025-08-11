@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cart-mongodb
+  namespace: data
+  labels:
+    app: cart-mongodb
+    component: data
+    service: cart-service
+    tier: database
+spec:
+  serviceName: cart-mongodb-headless
+  replicas: 1  # Reduced to 1 for dev environment
+  selector:
+    matchLabels:
+      app: cart-mongodb
+  template:
+    metadata:
+      labels:
+        app: cart-mongodb
+        component: data
+        service: cart-service
+        tier: database
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7.0
+          ports:
+            - containerPort: 27017
+              name: mongodb
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: cart-mongodb-secret
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cart-mongodb-secret
+                  key: password
+            - name: MONGO_INITDB_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: cart-mongodb-config
+                  key: database-name
+            # CRITICAL: Disable authentication for local connections (required for health checks)
+            - name: MONGO_INITDB_ARGS
+              value: "--auth"
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+            - name: mongodb-config
+              mountPath: /data/configdb
+          resources:
+            requests:
+              memory: "256Mi"  # Reduced for dev
+              cpu: "100m"     # Reduced for dev
+            limits:
+              memory: "512Mi"  # Reduced for dev
+              cpu: "250m"     # Reduced for dev
+
+          # FIXED: Improved health checks for MongoDB 7.0
+          livenessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 120  # Much longer initial delay
+            periodSeconds: 30
+            timeoutSeconds: 20        # Increased timeout
+            failureThreshold: 3
+
+          readinessProbe:
+            exec:
+              command:
+                - mongosh
+                - --quiet
+                - --eval
+                - "db.adminCommand('ping')"
+            initialDelaySeconds: 90   # Increased initial delay
+            periodSeconds: 15
+            timeoutSeconds: 20        # Increased timeout
+            failureThreshold: 5       # More attempts
+
+          startupProbe:
+            # FIXED: Use TCP probe first, then switch to mongosh
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30   # Give MongoDB time to start
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30      # Allow up to 5 minutes for startup (30 * 10s)
+
+      # Pod Anti-Affinity for High Availability (though using 1 replica in dev)
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: cart-mongodb
+                topologyKey: kubernetes.io/hostname
+
+  volumeClaimTemplates:
+    - metadata:
+        name: mongodb-data
+        labels:
+          app: cart-mongodb
+          component: data
+          service: cart-service
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 5Gi  # Reduced for dev
+    - metadata:
+        name: mongodb-config
+        labels:
+          app: cart-mongodb
+          component: data
+          service: cart-service
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 1Gi
