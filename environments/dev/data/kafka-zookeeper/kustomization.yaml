@@ -59,6 +59,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: data
             containers:
               - name: kafka
                 env:

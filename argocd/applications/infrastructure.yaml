@@ -30,6 +30,7 @@ metadata:
   name: nexus-ingress
   namespace: argocd
 spec:
+
   project: default
   source:
     repoURL:  https://github.com/ZakariaRek/gitops-repo_ArgoCD

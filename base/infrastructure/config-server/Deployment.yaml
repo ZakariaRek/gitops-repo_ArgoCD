@@ -18,6 +18,8 @@ spec:
         app: config-server
         component: infrastructure
     spec:
+      nodeSelector:
+        node-role: infrastructure
       containers:
         - name: config-server
           image: yahyazakaria123/ecommerce-app-config-service:latest

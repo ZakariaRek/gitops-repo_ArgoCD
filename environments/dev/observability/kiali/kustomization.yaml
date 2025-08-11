@@ -47,8 +47,11 @@ patches:
         name: kiali
         namespace: observability
       spec:
+        
         template:
           spec:
+            nodeSelector:
+              node-role: observability
             containers:
               - name: kiali
                 env:

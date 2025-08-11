@@ -17,6 +17,8 @@ spec:
         app: notification-service
         component: microservices
     spec:
+      nodeSelector:
+        node-role: microservices
       containers:
       - name: notification-service
         image: yahyazakaria123/ecommerce-app-notification-service:latest

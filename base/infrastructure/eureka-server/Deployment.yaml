@@ -17,6 +17,8 @@ spec:
         app: eureka-server
         component: infrastructure
     spec:
+      nodeSelector:
+        node-role: infrastructure
       containers:
         - name: eureka-server
           image: yahyazakaria123/ecommerce-app-discovery-service:latest

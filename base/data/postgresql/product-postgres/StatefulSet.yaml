@@ -22,6 +22,9 @@ spec:
         service: product-service
         tier: database
     spec:
+
+      nodeSelector:
+        node-role: data
       containers:
         - name: postgres
           image: postgres:15.4-alpine

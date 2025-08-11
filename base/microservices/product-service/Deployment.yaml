@@ -19,6 +19,8 @@ spec:
         component: microservices
         tier: backend
     spec:
+      nodeSelector:
+        node-role: microservices
       containers:
         - name: product-service
           image: yahyazakaria123/ecommerce-app-product-service:latest

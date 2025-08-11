@@ -17,6 +17,8 @@ spec:
         app: zookeeper
         component: data
     spec:
+      nodeSelector:
+        node-role: data
       containers:
         - name: zookeeper
           image: confluentinc/cp-zookeeper:7.4.0

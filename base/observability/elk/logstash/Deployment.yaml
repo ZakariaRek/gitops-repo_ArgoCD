@@ -19,6 +19,8 @@ spec:
         component: observability
         tier: logging
     spec:
+      nodeSelector:
+        node-role: observability
       containers:
         - name: logstash
           image: docker.elastic.co/logstash/logstash:8.11.0

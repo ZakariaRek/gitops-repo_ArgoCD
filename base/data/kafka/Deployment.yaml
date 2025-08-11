@@ -122,6 +122,8 @@ spec:
         app: kafka
         component: data
     spec:
+      nodeSelector:
+        node-role: data
       containers:
         - name: kafka
           image: confluentinc/cp-kafka:7.4.0

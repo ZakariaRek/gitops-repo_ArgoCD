@@ -20,8 +20,11 @@ spec:
         app: cart-mongodb
         component: data
         service: cart-service
-        tier: database
+        tier:
+
     spec:
+      nodeSelector:
+        node-role: data
       containers:
         - name: mongodb
           image: mongo:7.0

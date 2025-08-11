@@ -19,6 +19,8 @@ spec:
         component: observability
         tier: logging
     spec:
+      nodeSelector:
+        node-role: observability
       containers:
         - name: kibana
           image: docker.elastic.co/kibana/kibana:8.11.0

@@ -18,6 +18,8 @@ spec:
         app: kiali
         component: observability
     spec:
+      nodeSelector:
+        node-role: observability
       serviceAccountName: kiali-service-account
       containers:
         - image: quay.io/kiali/kiali:v1.76

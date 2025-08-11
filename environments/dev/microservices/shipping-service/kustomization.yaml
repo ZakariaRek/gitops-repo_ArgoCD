@@ -41,6 +41,8 @@ patches:
       spec:
         template:
           spec:
+            nodeSelector:
+              node-role: microservices
             containers:
               - name: shipping-service
                 env:
