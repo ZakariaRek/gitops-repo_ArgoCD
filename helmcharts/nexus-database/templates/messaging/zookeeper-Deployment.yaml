@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zookeeper
+  namespace: data
+  labels:
+    app: zookeeper
+    component: data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+        component: data
+    spec:
+      containers:
+        - name: zookeeper
+          image: confluentinc/cp-zookeeper:7.4.0
+          ports:
+            - containerPort: 2181
+              name: client
+            - containerPort: 2888
+              name: follower
+            - containerPort: 3888
+              name: election
+          env:
+            - name: ZOOKEEPER_CLIENT_PORT
+              value: "2181"
+            - name: ZOOKEEPER_TICK_TIME
+              value: "2000"
+            - name: ZOOKEEPER_INIT_LIMIT
+              value: "10"
+            - name: ZOOKEEPER_SYNC_LIMIT
+              value: "5"
+            - name: ZOOKEEPER_MAX_CLIENT_CNXNS
+              value: "60"
+            - name: ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT
+              value: "3"
+            - name: ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL
+              value: "1"
+            - name: ZOOKEEPER_ADMIN_ENABLE_SERVER
+              value: "false"
+            - name: ZOOKEEPER_LOG4J_ROOT_LOGLEVEL
+              value: "INFO"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx256M -Xms256M"
+            # Enable specific 4-letter word commands for health checks
+            - name: ZOOKEEPER_4LW_COMMANDS_WHITELIST
+              value: "srvr,stat,ruok,conf,cons,crst,envi,mntr,wchs,wchc,wchp,dirs"
+            # Add log4j configuration via environment variables
+            - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT
+              value: "org.apache.log4j.ConsoleAppender"
+            - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT_LAYOUT
+              value: "org.apache.log4j.PatternLayout"
+            - name: ZOOKEEPER_LOG4J_APPENDER_STDOUT_LAYOUT_CONVERSIONPATTERN
+              value: "%d{ISO8601} [myid:%X{myid}] - %-5p [%t:%C{1}@%L] - %m%n"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: zookeeper-data
+              mountPath: /var/lib/zookeeper/data
+            - name: zookeeper-logs
+              mountPath: /var/lib/zookeeper/logs
+            - name: zookeeper-config
+              mountPath: /etc/kafka/zoo.cfg
+              subPath: zoo.cfg
+          livenessProbe:
+            tcpSocket:
+              port: 2181
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "echo srvr | nc localhost 2181 | grep -q Mode"
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            tcpSocket:
+              port: 2181
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 12
+      volumes:
+        - name: zookeeper-data
+          persistentVolumeClaim:
+            claimName: zookeeper-data-pvc
+        - name: zookeeper-logs
+          persistentVolumeClaim:
+            claimName: zookeeper-logs-pvc
+        - name: zookeeper-config
+          configMap:
+            name: zookeeper-config

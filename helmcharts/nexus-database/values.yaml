@@ -1,0 +1,376 @@
+global:
+  namespace: data
+  environment: production
+  storageClass: standard
+  nodeSelector:
+    node-role: data
+
+  # Global resource defaults
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+
+# MongoDB Configuration
+mongodb:
+  enabled: true
+
+  cart:
+    enabled: true
+    name: cart-mongodb
+    image:
+      repository: mongo
+      tag: "7.0"
+      pullPolicy: IfNotPresent
+
+    replicas: 2
+
+    database:
+      name: cartdb
+
+    auth:
+      username: cartservice
+      password: cartservice123
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      data:
+        size: 10Gi
+      config:
+        size: 1Gi
+
+    service:
+      type: ClusterIP
+      port: 27017
+
+  user:
+    enabled: true
+    name: user-mongodb
+    image:
+      repository: mongo
+      tag: "7.0"
+      pullPolicy: IfNotPresent
+
+    replicas: 2
+
+    database:
+      name: userdb
+
+    auth:
+      username: userservice
+      password: userservice123
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      data:
+        size: 10Gi
+      config:
+        size: 1Gi
+
+    service:
+      type: ClusterIP
+      port: 27017
+
+# PostgreSQL Configuration
+postgresql:
+  enabled: true
+
+  product:
+    enabled: true
+    name: product-postgres
+    image:
+      repository: postgres
+      tag: "16-alpine"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    database:
+      name: productdb
+
+    auth:
+      username: productservice
+      password: productservice123
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      size: 10Gi
+
+    service:
+      type: ClusterIP
+      port: 5432
+
+  payment:
+    enabled: true
+    name: payment-postgres
+    image:
+      repository: postgres
+      tag: "16-alpine"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    database:
+      name: paymentdb
+
+    auth:
+      username: paymentservice
+      password: paymentservice123
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      size: 10Gi
+
+    service:
+      type: ClusterIP
+      port: 5432
+
+  order:
+    enabled: true
+    name: order-postgres
+    image:
+      repository: postgres
+      tag: "16-alpine"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    database:
+      name: orderdb
+
+    auth:
+      username: orderservice
+      password: orderservice123
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      size: 10Gi
+
+    service:
+      type: ClusterIP
+      port: 5432
+
+  loyalty:
+    enabled: true
+    name: loyalty-postgres
+    image:
+      repository: postgres
+      tag: "16-alpine"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    database:
+      name: loyalty-service
+
+    auth:
+      username: loyaltyservice
+      password: loyaltyservice123
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      size: 10Gi
+
+    service:
+      type: ClusterIP
+      port: 5432
+
+  shipping:
+    enabled: true
+    name: shipping-postgres
+    image:
+      repository: postgres
+      tag: "16-alpine"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    database:
+      name: shippingdb
+
+    auth:
+      username: shippingservice
+      password: shippingservice123
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      size: 10Gi
+
+    service:
+      type: ClusterIP
+      port: 5432
+
+# Redis Configuration
+redis:
+  enabled: true
+  name: redis-service
+  image:
+    repository: redis
+    tag: "7.2-alpine"
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "200m"
+
+  storage:
+    size: 2Gi
+
+  service:
+    type: ClusterIP
+    port: 6379
+
+  config:
+    maxmemory: "512mb"
+    maxmemoryPolicy: "allkeys-lru"
+    appendonly: "yes"
+
+# Kafka & Zookeeper Configuration
+messaging:
+  enabled: true
+
+  zookeeper:
+    enabled: true
+    name: zookeeper
+    image:
+      repository: confluentinc/cp-zookeeper
+      tag: "7.4.0"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "250m"
+
+    storage:
+      data:
+        size: 5Gi
+      logs:
+        size: 2Gi
+
+    service:
+      type: ClusterIP
+      ports:
+        client: 2181
+        follower: 2888
+        election: 3888
+
+  kafka:
+    enabled: true
+    name: kafka
+    image:
+      repository: confluentinc/cp-kafka
+      tag: "7.4.0"
+      pullPolicy: IfNotPresent
+
+    replicas: 1
+
+    resources:
+      requests:
+        memory: "1.5Gi"
+        cpu: "500m"
+      limits:
+        memory: "2.5Gi"
+        cpu: "1000m"
+
+    storage:
+      size: 10Gi
+
+    service:
+      type: ClusterIP
+      ports:
+        kafka: 9092
+        jmx: 9997
+
+    config:
+      numPartitions: 3
+      defaultReplicationFactor: 1
+      logRetentionHours: 168
+      logRetentionBytes: "1073741824"
+
+# Storage Configuration
+storage:
+  enabled: true
+  className: standard
+  reclaimPolicy: Retain
+
+# Security
+security:
+  enabled: true
+  networkPolicies:
+    enabled: false  # Enable for production
+
+# Monitoring
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+
+# Backup
+backup:
+  enabled: false
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 7  # Keep for 7 days

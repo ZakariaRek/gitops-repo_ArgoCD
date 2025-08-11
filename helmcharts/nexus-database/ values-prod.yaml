@@ -1,0 +1,205 @@
+global:
+  namespace: data
+  environment: production
+  storageClass: fast-ssd
+  nodeSelector:
+    node-role: data
+
+# MongoDB Configuration for Production
+mongodb:
+  enabled: true
+
+  cart:
+    enabled: true
+    replicas: 3  # High availability
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    storage:
+      data:
+        size: 50Gi  # Larger storage for prod
+      config:
+        size: 5Gi
+
+  user:
+    enabled: true
+    replicas: 3  # High availability
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    storage:
+      data:
+        size: 50Gi  # Larger storage for prod
+      config:
+        size: 5Gi
+
+# PostgreSQL Configuration for Production
+postgresql:
+  enabled: true
+
+  product:
+    enabled: true
+    replicas: 2  # Master-slave setup
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    storage:
+      size: 100Gi  # Large storage for prod
+
+  payment:
+    enabled: true
+    replicas: 2
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    storage:
+      size: 100Gi
+
+  order:
+    enabled: true
+    replicas: 2
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "500m"
+      limits:
+        memory: "2Gi"
+        cpu: "1000m"
+
+    storage:
+      size: 100Gi
+
+  loyalty:
+    enabled: true
+    replicas: 2
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      size: 50Gi
+
+  shipping:
+    enabled: true
+    replicas: 2
+
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+
+    storage:
+      size: 50Gi
+
+# Redis Configuration for Production
+redis:
+  enabled: true
+  replicas: 3  # Redis Cluster
+
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "500m"
+
+  storage:
+    size: 20Gi
+
+  config:
+    maxmemory: "1gb"
+
+# Messaging Configuration for Production
+messaging:
+  enabled: true
+
+  zookeeper:
+    enabled: true
+    replicas: 3  # Quorum
+
+    resources:
+      requests:
+        memory: "1Gi"
+        cpu: "250m"
+      limits:
+        memory: "2Gi"
+        cpu: "500m"
+
+    storage:
+      data:
+        size: 20Gi
+      logs:
+        size: 10Gi
+
+  kafka:
+    enabled: true
+    replicas: 3  # High availability
+
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "1000m"
+      limits:
+        memory: "4Gi"
+        cpu: "2000m"
+
+    storage:
+      size: 100Gi
+
+    config:
+      numPartitions: 6
+      defaultReplicationFactor: 3
+      logRetentionHours: 168  # 1 week
+      logRetentionBytes: "10737418240"  # 10GB
+
+# Security for Production
+security:
+  enabled: true
+  networkPolicies:
+    enabled: true
+
+# Monitoring for Production
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+
+# Backup for Production
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 30  # Keep for 30 days

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-postgres-config
+  namespace: data
+  labels:
+    app: payment-postgres
+    component: data
+    service: payment-service
+data:
+  database-name: "paymentdb"
